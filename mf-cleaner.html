@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>マネーフォワード月次データ クリーナー</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { font-family: "Yu Gothic UI", "Meiryo", sans-serif; margin: 0; padding: 16px; background: #f7f4ee; color: #2d2820; }
+    .app { max-width: 1120px; margin: 0 auto; background: #fffaf0; border: 1px solid #d9cdbd; border-radius: 14px; padding: 16px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+    .panel { margin-top: 12px; padding: 10px; border: 1px solid #d9cdbd; border-radius: 10px; background: #fff; }
+    .status { margin-top: 8px; color: #4a4038; }
+    .toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+    .toolbar input, .toolbar select { width: 100%; padding: 6px; border: 1px solid #d9cdbd; border-radius: 8px; }
+    .toolbar label { display: block; font-size: 12px; color: #4a4038; margin-bottom: 2px; }
+    button { border: 0; border-radius: 8px; padding: 8px 12px; background: #167255; color: #fff; font-weight: 700; cursor: pointer; transition: opacity .15s; }
+    button:hover { opacity: .85; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    button.secondary { background: #c97d33; }
+    button.outline { background: transparent; color: #5f564a; border: 1px solid #d9cdbd; font-weight: 400; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 760px; }
+    th, td { border-bottom: 1px solid #efe4d5; padding: 6px; white-space: nowrap; text-align: left; }
+    .desc-col { width: 320px; max-width: 320px; }
+    .desc-cell { width: 320px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    th { position: sticky; top: 0; background: #faf4e8; cursor: pointer; user-select: none; }
+    th:hover { background: #f0e8d8; }
+    th .sort-indicator { font-size: 10px; margin-left: 2px; opacity: .5; }
+    th .sort-indicator.active { opacity: 1; }
+    .scroll { overflow: auto; border: 1px solid #d9cdbd; border-radius: 8px; background: #fff; margin-top: 8px; }
+    .group td { background: #fdf7ec; font-weight: 700; }
+    .keeper td { color: #7a7060; font-style: italic; }
+    .amt-col { text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* Collapsible sections */
+    .section-header { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; margin-top: 14px; }
+    .section-header h2 { margin: 0; font-size: 15px; }
+    .section-toggle { font-size: 12px; color: #8a7e6e; transition: transform .2s; }
+    .section-body { overflow: hidden; transition: max-height .3s ease; }
+    .section-body.collapsed { max-height: 0 !important; overflow: hidden; }
+
+    /* Drop zone */
+    .drop-zone { border: 2px dashed #d9cdbd; border-radius: 10px; padding: 24px; text-align: center; color: #8a7e6e; margin-top: 10px; transition: border-color .2s, background .2s; }
+    .drop-zone.dragover { border-color: #167255; background: #e8f5ef; color: #167255; }
+    .drop-zone input[type="file"] { display: none; }
+    .drop-zone-label { cursor: pointer; font-weight: 700; color: #167255; text-decoration: underline; }
+
+    /* Loading overlay */
+    .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,250,240,.85); z-index: 1000; justify-content: center; align-items: center; flex-direction: column; gap: 12px; }
+    .loading-overlay.active { display: flex; }
+    .spinner { width: 36px; height: 36px; border: 4px solid #d9cdbd; border-top-color: #167255; border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { font-size: 14px; color: #5f564a; }
+
+    /* Stats cards */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+    .stat-card { background: #faf4e8; border-radius: 8px; padding: 10px; text-align: center; }
+    .stat-card .stat-value { font-size: 22px; font-weight: 700; color: #167255; }
+    .stat-card .stat-label { font-size: 11px; color: #5f564a; margin-top: 2px; }
+
+    /* Params panel */
+    .params-toggle { font-size: 12px; color: #167255; cursor: pointer; background: none; border: none; padding: 0; font-weight: 400; text-decoration: underline; }
+    .params-panel { display: none; margin-top: 8px; }
+    .params-panel.open { display: block; }
+    .params-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; }
+    .params-grid label { display: block; font-size: 12px; color: #4a4038; }
+    .params-grid input[type="number"] { width: 100%; padding: 4px 6px; border: 1px solid #d9cdbd; border-radius: 6px; font-size: 13px; }
+    .params-grid .param-hint { font-size: 10px; color: #8a7e6e; }
+
+    /* Undo/Redo */
+    .undo-redo button { font-size: 12px; padding: 4px 10px; }
+    .undo-redo button:disabled { opacity: .35; }
+    .undo-redo .undo-info { font-size: 11px; color: #8a7e6e; margin-left: 6px; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      body { padding: 8px; }
+      .app { padding: 10px; border-radius: 10px; }
+      .toolbar { grid-template-columns: 1fr 1fr; }
+      .row { gap: 6px; }
+      table { font-size: 11px; min-width: 560px; }
+      .desc-col, .desc-cell { width: 180px; max-width: 180px; }
+      .stats-grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+    }
+    @media (max-width: 480px) {
+      .toolbar { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading overlay -->
+  <div id="loadingOverlay" class="loading-overlay" role="alert" aria-live="assertive">
+    <div class="spinner"></div>
+    <div class="loading-text">処理中...</div>
+  </div>
+
+  <main class="app">
+    <h1>マネーフォワード月次データ クリーナー</h1>
+    <p>CSV/TSVを読み込み、重複候補を確認・復元して出力します。</p>
+
+    <!-- Drop zone -->
+    <div id="dropZone" class="drop-zone">
+      <p>CSV / TSV ファイルをここにドラッグ&ドロップ</p>
+      <p>または <label class="drop-zone-label" for="csvFile">ファイルを選択</label></p>
+      <input id="csvFile" type="file" accept=".csv,.tsv,text/csv,text/tab-separated-values">
+      <div id="fileName" style="margin-top:8px;font-weight:700;color:#2d2820;"></div>
+    </div>
+
+    <div class="row">
+      <label><input id="dropTransfer" type="checkbox" checked>振替除外</label>
+      <label><input id="dropZeroAmount" type="checkbox" checked>0円除外</label>
+      <button id="cleanBtn" type="button">クリーニング実行</button>
+      <button type="button" class="params-toggle" id="paramsToggle">詳細設定 ▼</button>
+    </div>
+
+    <div id="paramsPanel" class="params-panel">
+      <div class="params-grid">
+        <div>
+          <label>類似度しきい値 (SIM)
+            <input id="paramSim" type="number" min="0" max="1" step="0.05" value="0.9">
+          </label>
+          <div class="param-hint">0〜1。高いほど厳密 (既定: 0.9)</div>
+        </div>
+        <div>
+          <label>最大日付差 (日)
+            <input id="paramMaxDayDiff" type="number" min="0" max="365" step="1" value="30">
+          </label>
+          <div class="param-hint">異なる日付をどこまで同一とみなすか (既定: 30)</div>
+        </div>
+        <div>
+          <label>バンドル日付窓 (日)
+            <input id="paramBundleWindow" type="number" min="0" max="30" step="1" value="1">
+          </label>
+          <div class="param-hint">ポイント利用の束ね判定窓 (既定: 1)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <select id="downloadFormat" aria-label="ダウンロード形式">
+        <option value="csv_utf8_bom" selected>CSV (UTF-8 BOM / Excel推奨)</option>
+        <option value="csv_utf8">CSV (UTF-8)</option>
+        <option value="tsv_utf8_bom">TSV (UTF-8 BOM)</option>
+        <option value="excel_xml">Excel XML 形式 (.xml)</option>
+      </select>
+      <button id="downloadBtn" class="secondary" type="button" disabled>ダウンロード</button>
+    </div>
+
+    <div id="status" class="status" role="status" aria-live="polite"></div>
+    <div id="stats" class="panel" hidden></div>
+
+    <section id="dupPanel" class="panel" hidden>
+      <div class="section-header" id="dupSectionHeader">
+        <span class="section-toggle" id="dupToggleIcon">▼</span>
+        <h2>重複判定の確認</h2>
+        <span id="dupSummary" class="status" role="status" aria-live="polite" style="margin:0;"></span>
+      </div>
+      <div id="dupSectionBody" class="section-body">
+        <div class="toolbar" style="margin-top:8px;">
+          <div><label>検索(内容/金額/口座)</label><input id="fSearch" type="text"></div>
+          <div><label>日付From</label><input id="fFrom" type="date"></div>
+          <div><label>日付To</label><input id="fTo" type="date"></div>
+          <div><label>金額Min</label><input id="fMin" type="number"></div>
+          <div><label>金額Max</label><input id="fMax" type="number"></div>
+          <div><label>状態</label><select id="fState"><option value="all">全て</option><option value="removed">除外中</option><option value="restored">復元済み</option></select></div>
+        </div>
+
+        <div class="row">
+          <button id="allRemove" type="button">全除外ON</button>
+          <button id="allRestore" type="button" class="secondary">全復元</button>
+          <span class="undo-redo">
+            <button id="undoBtn" type="button" class="outline" disabled>↩ 元に戻す</button>
+            <button id="redoBtn" type="button" class="outline" disabled>↪ やり直し</button>
+            <span id="undoInfo" class="undo-info"></span>
+          </span>
+          <button id="filterReset" type="button" class="outline">フィルタリセット</button>
+        </div>
+
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr id="dupHead">
+                <th>日付</th><th class="desc-col">内容</th><th class="amt-col">金額</th><th>口座</th><th>判定理由</th><th>日付差</th><th>重複として除外</th>
+              </tr>
+            </thead>
+            <tbody id="dupBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section id="previewPanel" class="panel" style="border:none;padding:0;">
+      <div class="section-header" id="previewSectionHeader">
+        <span class="section-toggle" id="previewToggleIcon">▼</span>
+        <h2>全件プレビュー</h2>
+        <span id="previewSummary" class="status" role="status" aria-live="polite" style="margin:0;"></span>
+      </div>
+      <div id="previewSectionBody" class="section-body">
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr id="previewHead">
+                <th data-key="date">日付 <span class="sort-indicator"></span></th>
+                <th data-key="description" class="desc-col">内容 <span class="sort-indicator"></span></th>
+                <th data-key="amount" class="amt-col">金額 <span class="sort-indicator"></span></th>
+                <th data-key="major_category">大項目 <span class="sort-indicator"></span></th>
+                <th data-key="minor_category">中項目 <span class="sort-indicator"></span></th>
+                <th data-key="account">口座 <span class="sort-indicator"></span></th>
+                <th data-key="memo">メモ <span class="sort-indicator"></span></th>
+                <th data-key="is_transfer">振替 <span class="sort-indicator"></span></th>
+              </tr>
+            </thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // --- Params (read from UI at clean time) ---
+    let SIM = 0.9;
+    let MAX_DAY_DIFF = 30;
+    let BUNDLE_DAY_WINDOW = 1;
+
+    const cleanBtn = document.getElementById("cleanBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const downloadFormatEl = document.getElementById("downloadFormat");
+    const statusEl = document.getElementById("status");
+    const statsEl = document.getElementById("stats");
+    const dupPanel = document.getElementById("dupPanel");
+    const dupSummary = document.getElementById("dupSummary");
+    const dupBody = document.getElementById("dupBody");
+    const previewBody = document.getElementById("previewBody");
+    const previewSummary = document.getElementById("previewSummary");
+    const previewHead = document.getElementById("previewHead");
+    const fSearch = document.getElementById("fSearch");
+    const fFrom = document.getElementById("fFrom");
+    const fTo = document.getElementById("fTo");
+    const fMin = document.getElementById("fMin");
+    const fMax = document.getElementById("fMax");
+    const fState = document.getElementById("fState");
+    const allRemove = document.getElementById("allRemove");
+    const allRestore = document.getElementById("allRestore");
+    const filterReset = document.getElementById("filterReset");
+    const dropZone = document.getElementById("dropZone");
+    const csvFileEl = document.getElementById("csvFile");
+    const fileNameEl = document.getElementById("fileName");
+    const loadingOverlay = document.getElementById("loadingOverlay");
+    const paramsToggle = document.getElementById("paramsToggle");
+    const paramsPanel = document.getElementById("paramsPanel");
+    const paramSim = document.getElementById("paramSim");
+    const paramMaxDayDiff = document.getElementById("paramMaxDayDiff");
+    const paramBundleWindow = document.getElementById("paramBundleWindow");
+    const undoBtn = document.getElementById("undoBtn");
+    const redoBtn = document.getElementById("redoBtn");
+    const undoInfo = document.getElementById("undoInfo");
+    const dupSectionHeader = document.getElementById("dupSectionHeader");
+    const dupSectionBody = document.getElementById("dupSectionBody");
+    const dupToggleIcon = document.getElementById("dupToggleIcon");
+    const previewSectionHeader = document.getElementById("previewSectionHeader");
+    const previewSectionBody = document.getElementById("previewSectionBody");
+    const previewToggleIcon = document.getElementById("previewToggleIcon");
+
+    let cleanedRows = [];
+    let baseRows = [];
+    let baseInfo = null;
+    let currentGroups = [];
+    let removedByIndex = new Map();
+    let restored = new Set();
+    let selectedFile = null;
+    let hasDirtyData = false;
+
+    // Preview sort state
+    let previewSortKey = "date";
+    let previewSortDir = -1; // -1 = desc, 1 = asc
+
+    // --- Undo/Redo history ---
+    let undoStack = [];
+    let redoStack = [];
+    const MAX_UNDO = 50;
+
+    function pushUndo() {
+      undoStack.push(new Set(restored));
+      if (undoStack.length > MAX_UNDO) undoStack.shift();
+      redoStack = [];
+      updateUndoUI();
+    }
+
+    function updateUndoUI() {
+      undoBtn.disabled = !undoStack.length;
+      redoBtn.disabled = !redoStack.length;
+      undoInfo.textContent = undoStack.length ? `(履歴: ${undoStack.length})` : "";
+    }
+
+    // --- Params toggle ---
+    paramsToggle.addEventListener("click", () => {
+      const open = paramsPanel.classList.toggle("open");
+      paramsToggle.textContent = open ? "詳細設定 ▲" : "詳細設定 ▼";
+    });
+
+    function readParams() {
+      const s = Number(paramSim.value);
+      SIM = (Number.isFinite(s) && s >= 0 && s <= 1) ? s : 0.9;
+      const d = Number(paramMaxDayDiff.value);
+      MAX_DAY_DIFF = (Number.isFinite(d) && d >= 0) ? Math.round(d) : 30;
+      const b = Number(paramBundleWindow.value);
+      BUNDLE_DAY_WINDOW = (Number.isFinite(b) && b >= 0) ? Math.round(b) : 1;
+    }
+
+    // --- Collapsible sections ---
+    function setupCollapsible(header, body, icon) {
+      header.addEventListener("click", () => {
+        const closing = !body.classList.contains("collapsed");
+        if (closing) {
+          body.style.maxHeight = body.scrollHeight + "px";
+          requestAnimationFrame(() => { body.classList.add("collapsed"); body.style.maxHeight = "0"; });
+          icon.textContent = "▶";
+        } else {
+          body.classList.remove("collapsed");
+          body.style.maxHeight = body.scrollHeight + "px";
+          body.addEventListener("transitionend", function handler() {
+            body.removeEventListener("transitionend", handler);
+            body.style.maxHeight = "";
+          });
+          icon.textContent = "▼";
+        }
+      });
+    }
+    setupCollapsible(dupSectionHeader, dupSectionBody, dupToggleIcon);
+    setupCollapsible(previewSectionHeader, previewSectionBody, previewToggleIcon);
+
+    const cols = ["date", "description", "amount", "major_category", "minor_category", "account", "memo", "is_transfer", "id"];
+    const displayCols = ["date", "description", "amount", "major_category", "minor_category", "account", "memo", "is_transfer"];
+
+    function fmtAmount(v) {
+      if (typeof v !== "number") return String(v);
+      return v.toLocaleString("ja-JP");
+    }
+    const aliases = {
+      date: ["date", "日付", "利用日", "取引日"],
+      description: ["description", "内容", "摘要", "店舗名", "お店", "用途"],
+      amount: ["amount", "金額", "金額(円)", "金額（円）", "利用金額", "収支"],
+      major_category: ["major_category", "大項目", "カテゴリ", "カテゴリー"],
+      minor_category: ["minor_category", "中項目", "サブカテゴリ", "サブカテゴリー"],
+      account: ["account", "口座", "口座名", "保有金融機関", "カード", "金融機関"],
+      memo: ["memo", "メモ", "備考"],
+      is_transfer: ["is_transfer", "振替", "振替区分", "transfer"],
+      id: ["id", "ID", "取引ID"]
+    };
+
+    // --- Loading overlay ---
+    function showLoading(msg) {
+      loadingOverlay.querySelector(".loading-text").textContent = msg || "処理中...";
+      loadingOverlay.classList.add("active");
+      cleanBtn.disabled = true;
+    }
+    function hideLoading() {
+      loadingOverlay.classList.remove("active");
+      cleanBtn.disabled = false;
+    }
+
+    // --- Drag & Drop ---
+    function handleFile(file) {
+      if (!file) return;
+      selectedFile = file;
+      fileNameEl.textContent = file.name;
+      // Sync with file input for consistency
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      csvFileEl.files = dt.files;
+    }
+
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("dragover");
+    });
+    dropZone.addEventListener("dragleave", () => {
+      dropZone.classList.remove("dragover");
+    });
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      const file = e.dataTransfer.files[0];
+      if (file && (/\.(csv|tsv)$/i.test(file.name) || file.type === "text/csv" || file.type === "text/tab-separated-values")) {
+        handleFile(file);
+      } else {
+        statusEl.textContent = "CSV または TSV ファイルのみ対応しています。";
+      }
+    });
+    csvFileEl.addEventListener("change", () => {
+      handleFile(csvFileEl.files[0]);
+    });
+
+    // --- Page unload guard ---
+    window.addEventListener("beforeunload", (e) => {
+      if (hasDirtyData) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    });
+
+    // --- CSV parsing ---
+    function parseLine(line) {
+      const out = [];
+      let cur = "";
+      let inQ = false;
+      for (let i = 0; i < line.length; i += 1) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQ && line[i + 1] === '"') {
+            cur += '"';
+            i += 1;
+          } else {
+            inQ = !inQ;
+          }
+        } else if (ch === "," && !inQ) {
+          out.push(cur);
+          cur = "";
+        } else {
+          cur += ch;
+        }
+      }
+      out.push(cur);
+      return out;
+    }
+
+    function detectDelimiter(firstLine) {
+      const clean = firstLine.replace(/^\uFEFF/, "");
+      const tabs = (clean.match(/\t/g) || []).length;
+      const commas = (clean.match(/,/g) || []).length;
+      return tabs > commas ? "tsv" : "csv";
+    }
+
+    function parseTsvLine(line) {
+      return line.split("\t");
+    }
+
+    function parseDelimited(text) {
+      const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter((l) => l.trim());
+      if (lines.length < 2) return { headers: [], rows: [] };
+      const fmt = detectDelimiter(lines[0]);
+      const parse = fmt === "tsv" ? parseTsvLine : parseLine;
+      const headers = parse(lines[0]).map((h, i) => (i === 0 ? h.trim().replace(/^\uFEFF/, "") : h.trim()));
+      const rows = lines.slice(1).map((line) => {
+        const cells = parse(line);
+        const o = {};
+        headers.forEach((h, i) => { o[h] = (cells[i] ?? "").trim(); });
+        return o;
+      });
+      return { headers, rows, detectedFormat: fmt };
+    }
+
+    function scoreDecodedText(text) {
+      const first = (text.split(/\r?\n/, 1)[0] || "").trim();
+      let s = -((text.match(/\uFFFD/g) || []).length * 5);
+      if (first.includes(",")) s += 5;
+      ["日付", "内容", "金額", "振替", "ID"].forEach((t) => { if (first.includes(t)) s += 20; });
+      return s;
+    }
+
+    function decodeCsvBytes(bytes) {
+      const candidates = [];
+      ["utf-8", "shift_jis"].forEach((enc) => {
+        try {
+          const text = new TextDecoder(enc).decode(bytes);
+          candidates.push({ enc, text, score: scoreDecodedText(text) });
+        } catch (e) {}
+      });
+      if (!candidates.length) throw new Error("CSVのデコードに失敗しました。");
+      candidates.sort((a, b) => b.score - a.score);
+      return candidates[0];
+    }
+
+    async function readCsvFile(file) {
+      const b = await file.arrayBuffer();
+      return decodeCsvBytes(new Uint8Array(b));
+    }
+
+    function srcField(headers, target) {
+      const hs = headers.map((h) => h.toLowerCase().trim());
+      for (const a of aliases[target]) {
+        const i = hs.indexOf(a.toLowerCase());
+        if (i >= 0) return headers[i];
+      }
+      return null;
+    }
+
+    // --- Validation ---
+    function validateColumns(headers) {
+      const required = ["date", "description", "amount"];
+      const missing = required.filter((col) => !srcField(headers, col));
+      if (missing.length) {
+        const names = missing.map((c) => {
+          const example = aliases[c].slice(1, 3).join(", ");
+          return `${c} (例: ${example})`;
+        });
+        throw new Error(`必須カラムが見つかりません: ${names.join(" / ")}\nCSVヘッダーを確認してください。`);
+      }
+    }
+
+    const normText = (v) => (v || "").replace(/\u3000/g, " ").replace(/[ \t]+/g, " ").trim();
+    function normAmount(v) { const c = normText(v).replace(/[¥￥,\s]/g, ""); if (!c) return 0; const n = Number(c); return Number.isFinite(n) ? n : 0; }
+    function normDate(v) {
+      const t = normText(v).replace(/[.]/g, "/").replace(/-/g, "/");
+      const m = t.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+      return m ? `${m[1].padStart(4, "0")}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}` : "";
+    }
+
+    function normalizeDescription(v) {
+      let t = normText(v).normalize("NFKC").toLowerCase()
+        .replace(/【[^】]*】/g, " ").replace(/\([^)]*\)/g, " ").replace(/（[^）]*）/g, " ");
+      t = t
+        .replace(/楽天市場\(my rakuten\)|my rakuten|楽天市場店|楽天市場|ラクテンイチバ\d*|クーポン利用|ポイント利用|期間限定/g, " ")
+        .replace(/[\/\-_・ー−‐|]/g, " ")
+        .replace(/[^\p{L}\p{N}\s]/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      return t.replace(/\s+/g, "");
+    }
+
+    function merchantKey(v) {
+      const base = normText(v).normalize("NFKC").toLowerCase()
+        .replace(/【[^】]*】/g, " ")
+        .replace(/\([^)]*\)/g, " ")
+        .replace(/（[^）]*）/g, " ")
+        .replace(/クーポン利用|ポイント利用|期間限定|毎月0と5の付く日限定/g, " ")
+        .replace(/楽天市場\(my rakuten\)|my rakuten|楽天市場店|楽天市場|ラクテンイチバ\d*/g, " ")
+        .replace(/[\/\-_・ー−‐|]/g, " ")
+        .replace(/[^\p{L}\p{N}\s]/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      const parts = base.split(" ")
+        .filter(Boolean)
+        .filter((p) => !["公式", "ストア", "利用", "対象", "限定", "毎月"].includes(p));
+      let stem = parts[0] || "";
+      if (!stem) stem = normalizeDescription(v);
+      if (stem.length > 18) stem = stem.slice(0, 18);
+      return stem;
+    }
+
+    const prefixMatch = (a, b) => !!(a && b && (a.startsWith(b) || b.startsWith(a)));
+    function day(s) {
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return NaN;
+      return Math.floor(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86400000);
+    }
+    function dDiff(a, b) { const x = day(a), y = day(b); if (!Number.isFinite(x) || !Number.isFinite(y)) return Infinity; return Math.abs(x - y); }
+    const within = (a, b, d) => dDiff(a, b) <= d;
+
+    function grams(t) {
+      const m = new Map();
+      if (!t) return m;
+      if (t.length === 1) { m.set(t, 1); return m; }
+      for (let i = 0; i < t.length - 1; i += 1) {
+        const g = t.slice(i, i + 2);
+        m.set(g, (m.get(g) || 0) + 1);
+      }
+      return m;
+    }
+
+    function sim(a, b) {
+      if (!a && !b) return 1;
+      if (!a || !b) return 0;
+      if (a === b) return 1;
+      const A = grams(a), B = grams(b);
+      let ov = 0, sa = 0, sb = 0;
+      A.forEach((c) => { sa += c; });
+      B.forEach((c) => { sb += c; });
+      A.forEach((ca, g) => { ov += Math.min(ca, B.get(g) || 0); });
+      return sa + sb ? (2 * ov) / (sa + sb) : 0;
+    }
+
+    function typePriority(t) { return t === "cross_account_1to2_points" ? 3 : t === "cross_account_1to1" ? 2 : 1; }
+
+    function buildGroup(id, type, reason, rows, score, dateDiff, net, debug = "") {
+      const sorted = [...rows].sort((a, b) => a.sourceIndex - b.sourceIndex);
+      const keeper = sorted[0];
+      const removed = sorted.slice(1);
+      keeper.duplicateType = type;
+      keeper.duplicateReason = reason;
+      keeper.duplicateGroupId = id;
+      keeper.duplicateClusterId = id;
+      keeper.duplicateScore = 1;
+      keeper.isRemovedByDefault = false;
+      removed.forEach((r) => {
+        r.duplicateType = type;
+        r.duplicateReason = reason;
+        r.duplicateGroupId = id;
+        r.duplicateClusterId = id;
+        r.duplicateScore = score;
+        r.isRemovedByDefault = true;
+      });
+      return { groupId: id, type, reason, rows: sorted, keeper, removed, score, dateDiff, netAmountCalc: net, debug };
+    }
+
+    function pick(cands, used) {
+      const out = [];
+      [...cands]
+        .sort((a, b) => typePriority(b.type) - typePriority(a.type)
+          || a.dateDiff - b.dateDiff
+          || b.score - a.score
+          || (a.bundleRowCount || 99) - (b.bundleRowCount || 99)
+          || a.keeperIndex - b.keeperIndex)
+        .forEach((c) => {
+          if (c.rowIndices.some((i) => used.has(i))) return;
+          c.rowIndices.forEach((i) => used.add(i));
+          out.push(c);
+        });
+      return out;
+    }
+
+    function dedupe(rows) {
+      rows.forEach((r, i) => {
+        r.sourceIndex = i;
+        r.duplicateGroupId = "";
+        r.duplicateClusterId = "";
+        r.duplicateType = "";
+        r.duplicateReason = "";
+        r.duplicateScore = 1;
+        r.isRemovedByDefault = false;
+      });
+
+      const negatives = rows.filter((r) => r.amount < 0 && !r.is_transfer);
+      const positives = rows.filter((r) => r.amount > 0 && !r.is_transfer);
+      const used = new Set();
+      const selected = [];
+
+      // A) cross_account_1to2_points
+      const bundleCandidates = [];
+      negatives.forEach((marketNeg) => {
+        const marketPosCandidates = positives.filter((p) =>
+          p.account === marketNeg.account &&
+          prefixMatch(p.merchant_key, marketNeg.merchant_key) &&
+          within(p.date, marketNeg.date, BUNDLE_DAY_WINDOW)
+        );
+        if (!marketPosCandidates.length) return;
+
+        const posBundles = [];
+        for (let i = 0; i < marketPosCandidates.length; i += 1) {
+          posBundles.push([marketPosCandidates[i]]);
+          for (let j = i + 1; j < marketPosCandidates.length; j += 1) {
+            posBundles.push([marketPosCandidates[i], marketPosCandidates[j]]);
+          }
+        }
+
+        posBundles.forEach((posBundle) => {
+          const negSum = marketNeg.amount;
+          const posSum = posBundle.reduce((s, p) => s + p.amount, 0);
+          const net = Math.abs(negSum + posSum);
+          if (net === 0) return;
+
+          const members = [marketNeg, ...posBundle];
+          negatives.forEach((card) => {
+            if (card.sourceIndex === marketNeg.sourceIndex) return;
+            if (card.account === marketNeg.account) return;
+            if (!prefixMatch(card.merchant_key, marketNeg.merchant_key)) return;
+            if (Math.abs(card.amount) !== net) return;
+            const dd = Math.min(...members.map((m) => dDiff(card.date, m.date)));
+            if (dd > MAX_DAY_DIFF) return;
+
+            const rowIndices = [card.sourceIndex, ...members.map((m) => m.sourceIndex)].sort((a, b) => a - b);
+            const uniq = [...new Set(rowIndices)];
+            const score = sim(card.normalized_description, marketNeg.normalized_description);
+            bundleCandidates.push({
+              type: "cross_account_1to2_points",
+              reason: `純支出一致: ${negSum} + ${posSum} => ${negSum + posSum}`,
+              rowIndices: uniq,
+              rows: [card, ...members.filter((m) => m.sourceIndex !== card.sourceIndex)],
+              score,
+              dateDiff: dd,
+              bundleRowCount: members.length,
+              keeperIndex: Math.min(...uniq),
+              cardIndex: card.sourceIndex,
+              netAmountCalc: `${negSum} + ${posSum} => ${negSum + posSum}`
+            });
+          });
+        });
+      });
+
+      const bestByCard = new Map();
+      bundleCandidates.forEach((c) => {
+        const prev = bestByCard.get(c.cardIndex);
+        if (!prev) {
+          bestByCard.set(c.cardIndex, c);
+          return;
+        }
+        const better =
+          c.dateDiff < prev.dateDiff ||
+          (c.dateDiff === prev.dateDiff && c.score > prev.score) ||
+          (c.dateDiff === prev.dateDiff && c.score === prev.score && (c.bundleRowCount || 99) < (prev.bundleRowCount || 99)) ||
+          (c.dateDiff === prev.dateDiff && c.score === prev.score && (c.bundleRowCount || 99) === (prev.bundleRowCount || 99) && c.keeperIndex < prev.keeperIndex);
+        if (better) bestByCard.set(c.cardIndex, c);
+      });
+      selected.push(...pick([...bestByCard.values()], used));
+
+      // B) cross account 1:1
+      const pairCandidates = [];
+      const negRemaining = negatives.filter((r) => !used.has(r.sourceIndex));
+      for (let i = 0; i < negRemaining.length; i += 1) {
+        const a = negRemaining[i];
+        for (let j = i + 1; j < negRemaining.length; j += 1) {
+          const b = negRemaining[j];
+          if (a.account === b.account) continue;
+          if (Math.abs(a.amount) !== Math.abs(b.amount)) continue;
+          if (!prefixMatch(a.merchant_key, b.merchant_key)) continue;
+          const dd = dDiff(a.date, b.date);
+          if (dd > MAX_DAY_DIFF) continue;
+          const idx = [a.sourceIndex, b.sourceIndex].sort((x, y) => x - y);
+          pairCandidates.push({
+            type: "cross_account_1to1",
+            reason: `異口座同額一致: ${a.amount} vs ${b.amount}`,
+            rowIndices: idx,
+            rows: [a, b],
+            score: sim(a.normalized_description, b.normalized_description),
+            dateDiff: dd,
+            bundleRowCount: 2,
+            keeperIndex: idx[0],
+            netAmountCalc: "-"
+          });
+        }
+      }
+      const pairMap = new Map();
+      pairCandidates.forEach((c) => {
+        const key = c.rowIndices.join("|");
+        const prev = pairMap.get(key);
+        if (!prev || c.score > prev.score) pairMap.set(key, c);
+      });
+      selected.push(...pick([...pairMap.values()], used));
+
+      // C) same_source
+      const sameCandidates = [];
+      const sameRows = negatives.filter((r) => !used.has(r.sourceIndex));
+      const byAcct = new Map();
+      sameRows.forEach((r) => {
+        const arr = byAcct.get(r.account) || [];
+        arr.push(r);
+        byAcct.set(r.account, arr);
+      });
+
+      byAcct.forEach((arr) => {
+        const adj = new Map();
+        arr.forEach((r) => adj.set(r.sourceIndex, new Set()));
+        for (let i = 0; i < arr.length; i += 1) {
+          const a = arr[i];
+          for (let j = i + 1; j < arr.length; j += 1) {
+            const b = arr[j];
+            if (a.amount !== b.amount) continue;
+            if (!prefixMatch(a.merchant_key, b.merchant_key)) continue;
+            if (dDiff(a.date, b.date) > MAX_DAY_DIFF) continue;
+            const s = sim(a.normalized_description, b.normalized_description);
+            if (s < SIM) continue;
+            adj.get(a.sourceIndex).add(b.sourceIndex);
+            adj.get(b.sourceIndex).add(a.sourceIndex);
+          }
+        }
+
+        const seen = new Set();
+        arr.forEach((seed) => {
+          if (seen.has(seed.sourceIndex)) return;
+          const st = [seed.sourceIndex];
+          const comp = [];
+          while (st.length) {
+            const x = st.pop();
+            if (seen.has(x)) continue;
+            seen.add(x);
+            comp.push(x);
+            adj.get(x).forEach((n) => { if (!seen.has(n)) st.push(n); });
+          }
+          if (comp.length <= 1) return;
+          comp.sort((a, b) => a - b);
+          const rows2 = comp.map((idx) => rows[idx]);
+          const k = rows2[0];
+          const scores = rows2.slice(1).map((r) => sim(k.normalized_description, r.normalized_description));
+          const avg = scores.reduce((s, n) => s + n, 0) / (scores.length || 1);
+          const days = rows2.map((r) => day(r.date)).filter(Number.isFinite);
+          sameCandidates.push({
+            type: "same_source",
+            reason: `同一ソース重複: amount=${k.amount}, desc類似>=${SIM}`,
+            rowIndices: comp,
+            rows: rows2,
+            score: avg,
+            dateDiff: days.length ? Math.max(...days) - Math.min(...days) : 0,
+            bundleRowCount: rows2.length,
+            keeperIndex: comp[0],
+            netAmountCalc: "-"
+          });
+        });
+      });
+      selected.push(...pick(sameCandidates, used));
+
+      selected.sort((a, b) => typePriority(b.type) - typePriority(a.type) || a.dateDiff - b.dateDiff || b.score - a.score || a.keeperIndex - b.keeperIndex);
+
+      const removed = new Set();
+      const groups = [];
+      const breakdown = { same_source: 0, cross_account_1to1: 0, cross_account_1to2_points: 0 };
+      let gid = 1;
+      selected.forEach((c) => {
+        const g = buildGroup(`dup-${String(gid).padStart(4, "0")}`, c.type, c.reason, c.rows, c.score, c.dateDiff, c.netAmountCalc, c.debug || "");
+        g.removed.forEach((r) => removed.add(r.sourceIndex));
+        groups.push(g);
+        breakdown[c.type] = (breakdown[c.type] || 0) + 1;
+        gid += 1;
+      });
+
+      return {
+        rows: rows.filter((r) => !removed.has(r.sourceIndex)),
+        duplicateGroups: groups,
+        duplicateCandidateGroups: groups.length,
+        duplicateRemovedRows: removed.size,
+        duplicateTypeBreakdown: breakdown
+      };
+    }
+
+    function toBool(v) { return ["1", "true", "yes", "y", "on", "対象", "振替", "あり"].includes(normText(v).toLowerCase()); }
+
+    function clean(headers, rawRows, opt) {
+      validateColumns(headers);
+
+      const map = {};
+      cols.forEach((c) => { map[c] = srcField(headers, c); });
+
+      const transformed = rawRows.map((raw) => {
+        const desc = normText(raw[map.description] || "");
+        const r = {
+          date: normDate(raw[map.date] || ""),
+          description: desc,
+          amount: normAmount(raw[map.amount] || ""),
+          major_category: normText(raw[map.major_category] || ""),
+          minor_category: normText(raw[map.minor_category] || ""),
+          account: normText(raw[map.account] || ""),
+          memo: normText(raw[map.memo] || ""),
+          is_transfer: toBool(raw[map.is_transfer] || ""),
+          id: normText(raw[map.id] || ""),
+          normalized_description: normalizeDescription(desc),
+          merchant_key: merchantKey(desc),
+          sourceIndex: -1,
+          duplicateGroupId: "",
+          duplicateClusterId: "",
+          duplicateType: "",
+          duplicateReason: "",
+          duplicateScore: 1,
+          isRemovedByDefault: false
+        };
+        if (!r.is_transfer) {
+          const mt = `${r.major_category} ${r.minor_category}`.toLowerCase();
+          if (mt.includes("振替") || mt.includes("transfer")) r.is_transfer = true;
+        }
+        return r;
+      }).filter((r) => r.date && r.description);
+
+      const after = transformed.filter((r) => !(opt.dropTransfer && r.is_transfer) && !(opt.dropZeroAmount && r.amount === 0));
+      const d = dedupe(after);
+      return {
+        rows: d.rows,
+        duplicateGroups: d.duplicateGroups,
+        info: {
+          inputRows: rawRows.length,
+          normalizedRows: transformed.length,
+          afterFilterRows: after.length,
+          outputRows: d.rows.length,
+          duplicateCandidateGroups: d.duplicateCandidateGroups,
+          duplicateRemovedRows: d.duplicateRemovedRows,
+          duplicateTypeBreakdown: d.duplicateTypeBreakdown,
+          duplicateRule: "same_source / cross_account_1to1 / cross_account_1to2_points"
+        }
+      };
+    }
+
+    function sortOut(rows) { rows.sort((a, b) => a.date.localeCompare(b.date) || a.amount - b.amount || a.sourceIndex - b.sourceIndex); }
+
+    function toDelimited(rows, delimiter) {
+      const lines = [cols.join(delimiter)];
+      rows.forEach((row) => {
+        lines.push(cols.map((k) => {
+          let v = row[k];
+          if (typeof v === "boolean") v = v ? "true" : "false";
+          if (typeof v === "number") v = String(v);
+          v = String(v ?? "");
+          if (v.includes('"')) v = v.replace(/"/g, '""');
+          if (delimiter === "," && /[",\n]/.test(v)) v = `"${v}"`;
+          if (delimiter === "\t") v = v.replace(/\t/g, " ").replace(/\r?\n/g, " ");
+          return v;
+        }).join(delimiter));
+      });
+      return lines.join("\n");
+    }
+
+    function getDownloadPayload(rows, format) {
+      function xmlEsc(v) {
+        return String(v ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&apos;");
+      }
+      function toExcelXml(rowsForXml) {
+        const headerCells = cols.map((c) => `<Cell><Data ss:Type="String">${xmlEsc(c)}</Data></Cell>`).join("");
+        const dataRows = rowsForXml.map((row) => {
+          const cells = cols.map((k) => {
+            const v = row[k];
+            if (typeof v === "number") return `<Cell><Data ss:Type="Number">${v}</Data></Cell>`;
+            if (typeof v === "boolean") return `<Cell><Data ss:Type="String">${v ? "true" : "false"}</Data></Cell>`;
+            return `<Cell><Data ss:Type="String">${xmlEsc(v)}</Data></Cell>`;
+          }).join("");
+          return `<Row>${cells}</Row>`;
+        }).join("");
+
+        return `<?xml version="1.0" encoding="UTF-8"?>\n` +
+          `<?mso-application progid="Excel.Sheet"?>\n` +
+          `<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ` +
+          `xmlns:o="urn:schemas-microsoft-com:office:office" ` +
+          `xmlns:x="urn:schemas-microsoft-com:office:excel" ` +
+          `xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n` +
+          `<Worksheet ss:Name="mf-cleaned">\n` +
+          `<Table>\n<Row>${headerCells}</Row>\n${dataRows}\n</Table>\n` +
+          `</Worksheet>\n</Workbook>`;
+      }
+
+      if (format === "csv_utf8") {
+        return { text: toDelimited(rows, ","), mime: "text/csv;charset=utf-8;", ext: "csv" };
+      }
+      if (format === "tsv_utf8_bom") {
+        return { text: "\uFEFF" + toDelimited(rows, "\t"), mime: "text/tab-separated-values;charset=utf-8;", ext: "tsv" };
+      }
+      if (format === "excel_xml") {
+        return { text: toExcelXml(rows), mime: "application/vnd.ms-excel;charset=utf-8;", ext: "xml" };
+      }
+      return { text: "\uFEFF" + toDelimited(rows, ","), mime: "text/csv;charset=utf-8;", ext: "csv" };
+    }
+
+    // --- DOM helper: create element with text ---
+    function td(text, cls, title) {
+      const el = document.createElement("td");
+      if (cls) el.className = cls;
+      if (title) el.title = title;
+      el.textContent = String(text);
+      return el;
+    }
+
+    // --- Preview rendering with DocumentFragment ---
+    function renderPreview(rows) {
+      const list = [...rows];
+
+      // Sort by current sort state
+      list.sort((a, b) => {
+        const va = a[previewSortKey];
+        const vb = b[previewSortKey];
+        let cmp = 0;
+        if (typeof va === "number" && typeof vb === "number") {
+          cmp = va - vb;
+        } else {
+          cmp = String(va).localeCompare(String(vb));
+        }
+        return cmp * previewSortDir || a.sourceIndex - b.sourceIndex;
+      });
+
+      const frag = document.createDocumentFragment();
+      list.forEach((r) => {
+        const tr = document.createElement("tr");
+        displayCols.forEach((k) => {
+          if (k === "description") {
+            tr.appendChild(td(r[k], "desc-cell", String(r[k] ?? "")));
+          } else if (k === "amount") {
+            tr.appendChild(td(fmtAmount(r[k]), "amt-col"));
+          } else {
+            tr.appendChild(td(r[k]));
+          }
+        });
+        frag.appendChild(tr);
+      });
+
+      previewBody.textContent = "";
+      previewBody.appendChild(frag);
+      previewSummary.textContent = `${list.length}件`;
+
+      updateSortIndicators();
+    }
+
+    // --- Column sort on preview table ---
+    function updateSortIndicators() {
+      previewHead.querySelectorAll("th").forEach((th) => {
+        const ind = th.querySelector(".sort-indicator");
+        if (!ind) return;
+        const key = th.dataset.key;
+        if (key === previewSortKey) {
+          ind.classList.add("active");
+          ind.textContent = previewSortDir === 1 ? " \u25B2" : " \u25BC";
+        } else {
+          ind.classList.remove("active");
+          ind.textContent = "";
+        }
+      });
+    }
+
+    previewHead.addEventListener("click", (e) => {
+      const th = e.target.closest("th[data-key]");
+      if (!th) return;
+      const key = th.dataset.key;
+      if (previewSortKey === key) {
+        previewSortDir *= -1;
+      } else {
+        previewSortKey = key;
+        previewSortDir = key === "amount" ? -1 : 1;
+      }
+      if (cleanedRows.length) renderPreview(cleanedRows);
+    });
+
+    function fmtBD(bd) {
+      return `same_source:${bd.same_source || 0} / cross_account_1to1:${bd.cross_account_1to1 || 0} / cross_account_1to2_points:${bd.cross_account_1to2_points || 0}`;
+    }
+
+    // --- Stats rendering (card style, no innerHTML) ---
+    function renderStats(info) {
+      statsEl.hidden = false;
+      statsEl.textContent = "";
+
+      const grid = document.createElement("div");
+      grid.className = "stats-grid";
+
+      const cards = [
+        { label: "入力行", value: info.inputRows },
+        { label: "必須項目あり", value: info.normalizedRows },
+        { label: "フィルタ後", value: info.afterFilterRows },
+        { label: "重複候補グループ", value: info.duplicateCandidateGroups },
+        { label: "重複除去件数", value: info.duplicateRemovedRows },
+        { label: "出力行", value: info.outputRows }
+      ];
+
+      cards.forEach((c) => {
+        const card = document.createElement("div");
+        card.className = "stat-card";
+        const valEl = document.createElement("div");
+        valEl.className = "stat-value";
+        valEl.textContent = c.value;
+        const labEl = document.createElement("div");
+        labEl.className = "stat-label";
+        labEl.textContent = c.label;
+        card.appendChild(valEl);
+        card.appendChild(labEl);
+        grid.appendChild(card);
+      });
+
+      statsEl.appendChild(grid);
+
+      // Breakdown text below cards
+      const extra = document.createElement("div");
+      extra.style.cssText = "margin-top:8px;font-size:11px;color:#5f564a;";
+      extra.textContent = `タイプ内訳: ${fmtBD(info.duplicateTypeBreakdown)} / ルール: ${info.duplicateRule}`;
+      statsEl.appendChild(extra);
+    }
+
+    function matchSearch(r, q) {
+      if (!q) return true;
+      return `${r.description} ${r.account} ${r.amount} ${r.merchant_key}`.toLowerCase().includes(q);
+    }
+
+    // --- Duplicate panel rendering with DocumentFragment (no innerHTML) ---
+    function renderDup() {
+      if (!currentGroups.length) {
+        dupPanel.hidden = false;
+        dupSummary.textContent = "重複候補はありません。";
+        dupBody.textContent = "";
+        return;
+      }
+
+      dupPanel.hidden = false;
+
+      const q = normText(fSearch.value).toLowerCase();
+      const from = fFrom.value || "";
+      const to = fTo.value || "";
+      const min = normText(fMin.value) === "" ? NaN : Number(fMin.value);
+      const max = normText(fMax.value) === "" ? NaN : Number(fMax.value);
+      const state = fState.value;
+
+      const frag = document.createDocumentFragment();
+      let vg = 0, vr = 0, active = 0;
+
+      currentGroups.forEach((g) => {
+        const rows = g.removed.filter((r) => {
+          const isRem = !restored.has(r.sourceIndex);
+          if (state === "removed" && !isRem) return false;
+          if (state === "restored" && isRem) return false;
+          if (q && !matchSearch(r, q)) return false;
+          if (from && r.date < from) return false;
+          if (to && r.date > to) return false;
+          if (Number.isFinite(min) && r.amount < min) return false;
+          if (Number.isFinite(max) && r.amount > max) return false;
+          return true;
+        });
+        if (!rows.length) return;
+
+        vg += 1;
+        vr += rows.length;
+        active += rows.filter((r) => !restored.has(r.sourceIndex)).length;
+
+        const allRem = g.removed.every((r) => !restored.has(r.sourceIndex));
+
+        // Group header row
+        const h = document.createElement("tr");
+        h.className = "group";
+        const htd = document.createElement("td");
+        htd.colSpan = 7;
+        htd.textContent = `${g.groupId}  ${g.reason} `;
+        const toggleBtn = document.createElement("button");
+        toggleBtn.type = "button";
+        toggleBtn.dataset.action = "toggle-group";
+        toggleBtn.dataset.groupId = g.groupId;
+        toggleBtn.textContent = allRem ? "このグループを復元" : "このグループを除外";
+        htd.appendChild(toggleBtn);
+        h.appendChild(htd);
+        frag.appendChild(h);
+
+        // Keeper row (retained item)
+        const k = document.createElement("tr");
+        k.className = "keeper";
+        k.appendChild(td(g.keeper.date));
+        k.appendChild(td(g.keeper.description, "desc-cell", g.keeper.description));
+        k.appendChild(td(fmtAmount(g.keeper.amount), "amt-col"));
+        k.appendChild(td(g.keeper.account));
+        k.appendChild(td("保持"));
+        k.appendChild(td(g.dateDiff));
+        k.appendChild(td("-"));
+        frag.appendChild(k);
+
+        // Removed rows
+        rows.forEach((r) => {
+          const isRem = !restored.has(r.sourceIndex);
+          const tr = document.createElement("tr");
+          tr.appendChild(td(r.date));
+          tr.appendChild(td(r.description, "desc-cell", r.description));
+          tr.appendChild(td(fmtAmount(r.amount), "amt-col"));
+          tr.appendChild(td(r.account));
+          tr.appendChild(td(r.duplicateReason));
+          tr.appendChild(td(g.dateDiff));
+          const actionTd = document.createElement("td");
+          const label = document.createElement("label");
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.dataset.sourceIndex = String(r.sourceIndex);
+          cb.checked = isRem;
+          label.appendChild(cb);
+          label.appendChild(document.createTextNode("除外"));
+          actionTd.appendChild(label);
+          tr.appendChild(actionTd);
+          frag.appendChild(tr);
+        });
+      });
+
+      dupBody.textContent = "";
+      dupBody.appendChild(frag);
+      dupSummary.textContent = `${vg}グループ / 表示${vr}件 / 除外中${active}件`;
+    }
+
+    function rebuild() {
+      const restoredRows = [];
+      restored.forEach((i) => {
+        const r = removedByIndex.get(i);
+        if (r) restoredRows.push(r);
+      });
+
+      cleanedRows = [...baseRows, ...restoredRows];
+      sortOut(cleanedRows);
+      renderPreview(cleanedRows);
+      downloadBtn.disabled = !cleanedRows.length;
+
+      if (baseInfo) {
+        const act = removedByIndex.size - restored.size;
+        renderStats({ ...baseInfo, outputRows: baseInfo.outputRows + restoredRows.length, duplicateRemovedRows: act });
+      }
+
+      renderDup();
+    }
+
+    [fSearch, fFrom, fTo, fMin, fMax, fState].forEach((el) => {
+      el.addEventListener("input", renderDup);
+      el.addEventListener("change", renderDup);
+    });
+
+    // --- Filter reset ---
+    filterReset.addEventListener("click", () => {
+      fSearch.value = "";
+      fFrom.value = "";
+      fTo.value = "";
+      fMin.value = "";
+      fMax.value = "";
+      fState.value = "all";
+      renderDup();
+    });
+
+    allRemove.addEventListener("click", () => {
+      pushUndo();
+      restored = new Set();
+      rebuild();
+    });
+
+    allRestore.addEventListener("click", () => {
+      pushUndo();
+      restored = new Set(removedByIndex.keys());
+      rebuild();
+    });
+
+    // --- Undo / Redo ---
+    undoBtn.addEventListener("click", () => {
+      if (!undoStack.length) return;
+      redoStack.push(new Set(restored));
+      restored = undoStack.pop();
+      updateUndoUI();
+      rebuild();
+    });
+
+    redoBtn.addEventListener("click", () => {
+      if (!redoStack.length) return;
+      undoStack.push(new Set(restored));
+      restored = redoStack.pop();
+      updateUndoUI();
+      rebuild();
+    });
+
+    dupBody.addEventListener("change", (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLInputElement) || t.type !== "checkbox") return;
+      const i = Number(t.dataset.sourceIndex);
+      if (!Number.isFinite(i)) return;
+      pushUndo();
+      if (t.checked) restored.delete(i); else restored.add(i);
+      rebuild();
+    });
+
+    dupBody.addEventListener("click", (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLButtonElement) || t.dataset.action !== "toggle-group") return;
+      const g = currentGroups.find((x) => x.groupId === t.dataset.groupId);
+      if (!g) return;
+      pushUndo();
+      const all = g.removed.every((r) => !restored.has(r.sourceIndex));
+      if (all) g.removed.forEach((r) => restored.add(r.sourceIndex));
+      else g.removed.forEach((r) => restored.delete(r.sourceIndex));
+      rebuild();
+    });
+
+    cleanBtn.addEventListener("click", async () => {
+      const file = csvFileEl.files[0];
+      if (!file) {
+        statusEl.textContent = "CSV/TSVファイルを選択してください。";
+        return;
+      }
+
+      showLoading("データを読み込み・解析中...");
+      statusEl.textContent = "";
+      dupPanel.hidden = true;
+      dupBody.textContent = "";
+      statsEl.hidden = true;
+      hasDirtyData = false;
+      readParams();
+      undoStack = [];
+      redoStack = [];
+      updateUndoUI();
+
+      try {
+        const decoded = await readCsvFile(file);
+        const parsed = parseDelimited(decoded.text);
+        if (!parsed.rows.length) {
+          hideLoading();
+          statusEl.textContent = "有効なデータ行がありません。";
+          downloadBtn.disabled = true;
+          return;
+        }
+
+        // Yield to UI before heavy computation
+        await new Promise((r) => setTimeout(r, 0));
+
+        const result = clean(parsed.headers, parsed.rows, {
+          dropTransfer: document.getElementById("dropTransfer").checked,
+          dropZeroAmount: document.getElementById("dropZeroAmount").checked
+        });
+
+        baseRows = result.rows;
+        baseInfo = result.info;
+        currentGroups = result.duplicateGroups;
+        removedByIndex = new Map();
+        restored = new Set();
+        currentGroups.forEach((g) => g.removed.forEach((r) => removedByIndex.set(r.sourceIndex, r)));
+
+        rebuild();
+        hasDirtyData = true;
+        hideLoading();
+        const fmtLabel = parsed.detectedFormat === "tsv" ? "TSV" : "CSV";
+        statusEl.textContent = `完了: ${cleanedRows.length}件を出力できます。（${fmtLabel} / encoding: ${decoded.enc} / SIM=${SIM}, 日付差=${MAX_DAY_DIFF}日）`;
+      } catch (err) {
+        hideLoading();
+        downloadBtn.disabled = true;
+        statusEl.textContent = `エラー: ${err.message}`;
+      }
+    });
+
+    downloadBtn.addEventListener("click", () => {
+      if (!cleanedRows.length) return;
+      const format = downloadFormatEl.value || "csv_utf8_bom";
+      const payload = getDownloadPayload(cleanedRows, format);
+      const blob = new Blob([payload.text], { type: payload.mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, "0");
+      const baseName = selectedFile ? selectedFile.name.replace(/\.[^.]+$/, "") : "mf";
+      a.href = url;
+      a.download = `${baseName}-cleaned-${y}${m}.${payload.ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      hasDirtyData = false;
+    });
+  </script>
+</body>
+</html>
