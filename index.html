@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>カウンター</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: sans-serif;
+      background: #f0f0f0;
+    }
+
+    .counter {
+      text-align: center;
+      background: #fff;
+      padding: 40px 60px;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    #count {
+      font-size: 96px;
+      font-weight: bold;
+      margin: 20px 0;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+
+    button {
+      font-size: 24px;
+      width: 60px;
+      height: 60px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      color: #fff;
+      transition: opacity 0.2s;
+    }
+
+    button:hover {
+      opacity: 0.8;
+    }
+
+    #decrement {
+      background: #e74c3c;
+    }
+
+    #reset {
+      background: #95a5a6;
+      font-size: 16px;
+      width: 80px;
+    }
+
+    #increment {
+      background: #2ecc71;
+    }
+  </style>
+</head>
+<body>
+  <div class="counter">
+    <div id="count">0</div>
+    <div class="buttons">
+      <button id="decrement" onclick="update(-1)">−</button>
+      <button id="reset" onclick="reset()">Reset</button>
+      <button id="increment" onclick="update(1)">＋</button>
+    </div>
+  </div>
+
+  <script>
+    let count = 0;
+    const countEl = document.getElementById('count');
+
+    function update(delta) {
+      count += delta;
+      countEl.textContent = count;
+    }
+
+    function reset() {
+      count = 0;
+      countEl.textContent = count;
+    }
+  </script>
+</body>
+</html>
