@@ -5,29 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>マネーフォワード月次データ クリーナー</title>
   <style>
-    body{font-family:"Yu Gothic UI","Meiryo",sans-serif;margin:0;padding:16px;background:#f7f4ee;color:#2d2820}
-    .app{max-width:1100px;margin:0 auto;background:#fffaf0;border:1px solid #d9cdbd;border-radius:14px;padding:16px}
-    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
-    .panel{margin-top:12px;padding:10px;border:1px solid #d9cdbd;border-radius:10px;background:#fff}
-    .status{margin-top:8px;color:#5f564a}
-    .toolbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
-    .toolbar input,.toolbar select{width:100%;padding:6px;border:1px solid #d9cdbd;border-radius:8px}
-    .toolbar label{display:block;font-size:12px;color:#5f564a;margin-bottom:2px}
-    button{border:0;border-radius:8px;padding:8px 12px;background:#167255;color:#fff;font-weight:700;cursor:pointer}
-    button.secondary{background:#c97d33}
-    table{width:100%;border-collapse:collapse;font-size:12px;min-width:980px}
-    th,td{border-bottom:1px solid #efe4d5;padding:6px;white-space:nowrap;text-align:left}
-    .desc-col{width:320px;max-width:320px}
-    .desc-cell{width:320px;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    th{position:sticky;top:0;background:#faf4e8}
-    .scroll{overflow:auto;border:1px solid #d9cdbd;border-radius:8px;background:#fff;margin-top:8px}
-    .group td{background:#fdf7ec;font-weight:700}
+    body { font-family: "Yu Gothic UI", "Meiryo", sans-serif; margin: 0; padding: 16px; background: #f7f4ee; color: #2d2820; }
+    .app { max-width: 1120px; margin: 0 auto; background: #fffaf0; border: 1px solid #d9cdbd; border-radius: 14px; padding: 16px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+    .panel { margin-top: 12px; padding: 10px; border: 1px solid #d9cdbd; border-radius: 10px; background: #fff; }
+    .status { margin-top: 8px; color: #5f564a; }
+    .toolbar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+    .toolbar input, .toolbar select { width: 100%; padding: 6px; border: 1px solid #d9cdbd; border-radius: 8px; }
+    .toolbar label { display: block; font-size: 12px; color: #5f564a; margin-bottom: 2px; }
+    button { border: 0; border-radius: 8px; padding: 8px 12px; background: #167255; color: #fff; font-weight: 700; cursor: pointer; }
+    button.secondary { background: #c97d33; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 980px; }
+    th, td { border-bottom: 1px solid #efe4d5; padding: 6px; white-space: nowrap; text-align: left; }
+    .desc-col { width: 320px; max-width: 320px; }
+    .desc-cell { width: 320px; max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    th { position: sticky; top: 0; background: #faf4e8; }
+    .scroll { overflow: auto; border: 1px solid #d9cdbd; border-radius: 8px; background: #fff; margin-top: 8px; }
+    .group td { background: #fdf7ec; font-weight: 700; }
   </style>
 </head>
 <body>
   <main class="app">
     <h1>マネーフォワード月次データ クリーナー</h1>
     <p>CSVを読み込み、重複候補を確認・復元してCSV出力します。</p>
+
     <div class="row">
       <label for="csvFile">CSV:</label><input id="csvFile" type="file" accept=".csv,text/csv">
       <label><input id="dropTransfer" type="checkbox" checked>振替除外</label>
@@ -35,27 +36,35 @@
       <button id="cleanBtn" type="button">クリーニング実行</button>
       <button id="downloadBtn" class="secondary" type="button" disabled>CSVダウンロード</button>
     </div>
+
     <div id="status" class="status"></div>
     <div id="stats" class="panel" hidden></div>
 
     <section id="dupPanel" class="panel" hidden>
       <h2>重複判定の確認</h2>
       <div id="dupSummary" class="status"></div>
+
       <div class="toolbar">
-        <div><label>検索(店舗/金額/口座)</label><input id="fSearch" type="text"></div>
+        <div><label>検索(内容/金額/口座)</label><input id="fSearch" type="text"></div>
         <div><label>日付From</label><input id="fFrom" type="date"></div>
         <div><label>日付To</label><input id="fTo" type="date"></div>
         <div><label>金額Min</label><input id="fMin" type="number"></div>
         <div><label>金額Max</label><input id="fMax" type="number"></div>
         <div><label>状態</label><select id="fState"><option value="all">全て</option><option value="removed">除外中</option><option value="restored">復元済み</option></select></div>
       </div>
+
       <div class="row">
         <button id="allRemove" type="button">全除外ON</button>
         <button id="allRestore" type="button" class="secondary">全復元</button>
       </div>
+
       <div class="scroll">
         <table>
-          <thead><tr><th>group</th><th>type</th><th>date</th><th class="desc-col">description</th><th>amount</th><th>account</th><th>reason</th><th>dateDiff</th><th>netAmount</th><th>除外</th></tr></thead>
+          <thead>
+            <tr>
+              <th>グループ</th><th>判定タイプ</th><th>日付</th><th class="desc-col">内容</th><th>金額</th><th>口座</th><th>判定理由</th><th>日付差</th><th>純支出計算</th><th>重複として除外</th>
+            </tr>
+          </thead>
           <tbody id="dupBody"></tbody>
         </table>
       </div>
@@ -64,124 +73,741 @@
     <div id="previewSummary" class="status"></div>
     <div class="scroll">
       <table>
-        <thead><tr><th>date</th><th class="desc-col">description</th><th>amount</th><th>major_category</th><th>minor_category</th><th>account</th><th>memo</th><th>is_transfer</th><th>id</th></tr></thead>
+        <thead>
+          <tr>
+            <th>日付</th><th class="desc-col">内容</th><th>金額</th><th>大項目</th><th>中項目</th><th>口座</th><th>メモ</th><th>振替</th><th>ID</th>
+          </tr>
+        </thead>
         <tbody id="previewBody"></tbody>
       </table>
     </div>
   </main>
 
   <script>
-    const SIM=0.9,MAXD=30;
-    const cleanBtn=document.getElementById("cleanBtn"),downloadBtn=document.getElementById("downloadBtn"),statusEl=document.getElementById("status"),statsEl=document.getElementById("stats");
-    const dupPanel=document.getElementById("dupPanel"),dupSummary=document.getElementById("dupSummary"),dupBody=document.getElementById("dupBody"),previewBody=document.getElementById("previewBody"),previewSummary=document.getElementById("previewSummary");
-    const fSearch=document.getElementById("fSearch"),fFrom=document.getElementById("fFrom"),fTo=document.getElementById("fTo"),fMin=document.getElementById("fMin"),fMax=document.getElementById("fMax"),fState=document.getElementById("fState");
-    const allRemove=document.getElementById("allRemove"),allRestore=document.getElementById("allRestore");
-    let cleanedRows=[],baseRows=[],baseInfo=null,currentGroups=[],removedByIndex=new Map(),restored=new Set();
-    const cols=["date","description","amount","major_category","minor_category","account","memo","is_transfer","id"];
-    const aliases={date:["date","日付","利用日","取引日"],description:["description","内容","摘要","店舗名","お店","用途"],amount:["amount","金額","金額(円)","金額（円）","利用金額","収支"],major_category:["major_category","大項目","カテゴリ","カテゴリー"],minor_category:["minor_category","中項目","サブカテゴリ","サブカテゴリー"],account:["account","口座","口座名","保有金融機関","カード","金融機関"],memo:["memo","メモ","備考"],is_transfer:["is_transfer","振替","振替区分","transfer"],id:["id","ID","取引ID"]};
+    const SIM = 0.9;
+    const MAX_DAY_DIFF = 30;
+    const BUNDLE_DAY_WINDOW = 1;
 
-    function parseLine(line){const r=[];let c="",q=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==="\""){if(q&&line[i+1]==="\""){c+="\"";i++;}else q=!q;}else if(ch===","&&!q){r.push(c);c="";}else c+=ch;}r.push(c);return r;}
-    function parseCsv(text){const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").filter(l=>l.trim());if(lines.length<2)return{headers:[],rows:[]};const headers=parseLine(lines[0]).map((h,i)=>i===0?h.trim().replace(/^\uFEFF/,""):h.trim());const rows=lines.slice(1).map(l=>{const cells=parseLine(l),o={};headers.forEach((h,i)=>o[h]=(cells[i]??"").trim());return o;});return{headers,rows};}
-    function scoreDecodedText(text){const first=(text.split(/\r?\n/,1)[0]||"").trim();let s=-(text.match(/\uFFFD/g)||[]).length*5;if(first.includes(","))s+=5;["日付","内容","金額","振替","ID"].forEach(t=>{if(first.includes(t))s+=20;});return s;}
-    function decodeCsvBytes(bytes){const c=[];["utf-8","shift_jis"].forEach(enc=>{try{const text=new TextDecoder(enc).decode(bytes);c.push({enc,text,score:scoreDecodedText(text)});}catch(e){}});if(!c.length)throw new Error("CSVのデコードに失敗しました。");c.sort((a,b)=>b.score-a.score);return c[0];}
-    async function readCsvFile(file){const b=await file.arrayBuffer();return decodeCsvBytes(new Uint8Array(b));}
-    function srcField(headers,target){const hs=headers.map(h=>h.toLowerCase().trim());for(const a of aliases[target]){const i=hs.indexOf(a.toLowerCase());if(i>=0)return headers[i];}return null;}
-    const normText=v=>(v||"").replace(/\u3000/g," ").replace(/[ \t]+/g," ").trim();
-    function normAmount(v){const c=normText(v).replace(/[¥￥,\s]/g,"");if(!c)return 0;const n=Number(c);return Number.isFinite(n)?n:0;}
-    function normDate(v){const t=normText(v).replace(/[.]/g,"/").replace(/-/g,"/"),m=t.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);if(!m)return"";return`${m[1].padStart(4,"0")}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;}
-    function normalizeDescription(v){let t=normText(v).normalize("NFKC").toLowerCase().replace(/【[^】]*】/g," ").replace(/\([^)]*\)/g," ").replace(/（[^）]*）/g," ");t=t.replace(/楽天市場\(my rakuten\)|my rakuten|楽天市場店|楽天市場|ラクテンイチバ\d*|クーポン利用|ポイント利用|期間限定/g," ").replace(/[\/\-_・ー−‐|]/g," ").replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim();return t.replace(/\s+/g,"");}
-    function merchantKey(v){let k=normalizeDescription(v).replace(/楽天市場店|楽天市場|公式ストア|オンラインショップ|支店/g,"");if(k.length>18)k=k.slice(0,18);return k;}
-    const prefixMatch=(a,b)=>!!(a&&b&&(a.startsWith(b)||b.startsWith(a)));
-    function day(s){const m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return NaN;return Math.floor(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3]))/86400000);}
-    function dDiff(a,b){const x=day(a),y=day(b);if(!Number.isFinite(x)||!Number.isFinite(y))return Infinity;return Math.abs(x-y);}
-    const within=(a,b,d)=>dDiff(a,b)<=d;
-    function grams(t){const m=new Map();if(!t)return m;if(t.length===1){m.set(t,1);return m;}for(let i=0;i<t.length-1;i++){const g=t.slice(i,i+2);m.set(g,(m.get(g)||0)+1);}return m;}
-    function sim(a,b){if(!a&&!b)return 1;if(!a||!b)return 0;if(a===b)return 1;const A=grams(a),B=grams(b);let ov=0,sa=0,sb=0;A.forEach(c=>sa+=c);B.forEach(c=>sb+=c);A.forEach((ca,g)=>ov+=Math.min(ca,B.get(g)||0));return sa+sb?2*ov/(sa+sb):0;}
-    const pr=t=>t==="cross_account_1to2_points"?3:t==="cross_account_1to1"?2:1;
-    function buildGroup(id,type,reason,rows,score,dateDiff,net){const sorted=[...rows].sort((a,b)=>a.sourceIndex-b.sourceIndex),keeper=sorted[0],removed=sorted.slice(1);keeper.duplicateType=type;keeper.duplicateReason=reason;keeper.duplicateGroupId=id;keeper.duplicateClusterId=id;keeper.duplicateScore=1;keeper.isRemovedByDefault=false;removed.forEach(r=>{r.duplicateType=type;r.duplicateReason=reason;r.duplicateGroupId=id;r.duplicateClusterId=id;r.duplicateScore=score;r.isRemovedByDefault=true;});return{groupId:id,type,reason,rows:sorted,keeper,removed,score,dateDiff,netAmountCalc:net};}
-    function pick(cands,used){const out=[];[...cands].sort((a,b)=>pr(b.type)-pr(a.type)||a.dateDiff-b.dateDiff||b.score-a.score||a.keeperIndex-b.keeperIndex).forEach(c=>{if(c.rowIndices.some(i=>used.has(i)))return;c.rowIndices.forEach(i=>used.add(i));out.push(c);});return out;}
+    const cleanBtn = document.getElementById("cleanBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const statusEl = document.getElementById("status");
+    const statsEl = document.getElementById("stats");
+    const dupPanel = document.getElementById("dupPanel");
+    const dupSummary = document.getElementById("dupSummary");
+    const dupBody = document.getElementById("dupBody");
+    const previewBody = document.getElementById("previewBody");
+    const previewSummary = document.getElementById("previewSummary");
+    const fSearch = document.getElementById("fSearch");
+    const fFrom = document.getElementById("fFrom");
+    const fTo = document.getElementById("fTo");
+    const fMin = document.getElementById("fMin");
+    const fMax = document.getElementById("fMax");
+    const fState = document.getElementById("fState");
+    const allRemove = document.getElementById("allRemove");
+    const allRestore = document.getElementById("allRestore");
 
-    function dedupe(rows){
-      rows.forEach((r,i)=>{r.sourceIndex=i;r.duplicateGroupId="";r.duplicateClusterId="";r.duplicateType="";r.duplicateReason="";r.duplicateScore=1;r.isRemovedByDefault=false;});
-      const neg=rows.filter(r=>r.amount<0&&!r.is_transfer),pos=rows.filter(r=>r.amount>0&&!r.is_transfer),used=new Set(),selected=[],m12=new Map();
-      for(let i=0;i<neg.length;i++){const card=neg[i];for(let j=0;j<neg.length;j++){if(i===j)continue;const market=neg[j];if(card.account===market.account||!prefixMatch(card.merchant_key,market.merchant_key)||!within(card.date,market.date,MAXD))continue;for(let k=0;k<pos.length;k++){const point=pos[k];if(point.account!==market.account||!prefixMatch(point.merchant_key,market.merchant_key)||!within(point.date,market.date,MAXD)||!within(point.date,card.date,MAXD))continue;const net=Math.abs(market.amount+point.amount);if(net!==Math.abs(card.amount))continue;const idx=[card.sourceIndex,market.sourceIndex,point.sourceIndex].sort((a,b)=>a-b),key=idx.join("|");if(m12.has(key))continue;m12.set(key,{type:"cross_account_1to2_points",reason:`純支出一致: |${market.amount} + ${point.amount}| = |${card.amount}|`,rowIndices:idx,rows:[card,market,point],score:sim(card.normalized_description,market.normalized_description),dateDiff:Math.max(dDiff(card.date,market.date),dDiff(card.date,point.date),dDiff(market.date,point.date)),keeperIndex:idx[0],netAmountCalc:`${market.amount} + ${point.amount} => ${market.amount+point.amount}`});}}}
-      selected.push(...pick([...m12.values()],used));
-      const m11=new Map();
-      for(let i=0;i<neg.length;i++){const a=neg[i];if(used.has(a.sourceIndex))continue;for(let j=i+1;j<neg.length;j++){const b=neg[j];if(used.has(b.sourceIndex)||a.account===b.account||Math.abs(a.amount)!==Math.abs(b.amount)||!prefixMatch(a.merchant_key,b.merchant_key))continue;const dd=dDiff(a.date,b.date);if(dd>MAXD)continue;const idx=[a.sourceIndex,b.sourceIndex].sort((x,y)=>x-y),key=idx.join("|");if(m11.has(key))continue;m11.set(key,{type:"cross_account_1to1",reason:`異口座同額一致: ${a.amount} vs ${b.amount}`,rowIndices:idx,rows:[a,b],score:sim(a.normalized_description,b.normalized_description),dateDiff:dd,keeperIndex:idx[0],netAmountCalc:"-"});}}
-      selected.push(...pick([...m11.values()],used));
-      const rem=neg.filter(r=>!used.has(r.sourceIndex)),adj=new Map();rem.forEach(r=>adj.set(r.sourceIndex,new Set()));
-      for(let i=0;i<rem.length;i++){const a=rem[i];for(let j=i+1;j<rem.length;j++){const b=rem[j];if(a.amount!==b.amount||!prefixMatch(a.merchant_key,b.merchant_key)||dDiff(a.date,b.date)>MAXD)continue;const s=sim(a.normalized_description,b.normalized_description);if(s<SIM)continue;adj.get(a.sourceIndex).add(b.sourceIndex);adj.get(b.sourceIndex).add(a.sourceIndex);}}
-      const seen=new Set(),same=[];
-      rem.forEach(seed=>{if(seen.has(seed.sourceIndex))return;const st=[seed.sourceIndex],comp=[];while(st.length){const x=st.pop();if(seen.has(x))continue;seen.add(x);comp.push(x);adj.get(x).forEach(n=>{if(!seen.has(n))st.push(n);});}if(comp.length<=1)return;comp.sort((a,b)=>a-b);const rows2=comp.map(i=>rows[i]),k=rows2[0],sc=rows2.slice(1).map(r=>sim(k.normalized_description,r.normalized_description));const avg=sc.reduce((s,n)=>s+n,0)/(sc.length||1),days=rows2.map(r=>day(r.date)).filter(Number.isFinite);same.push({type:"same_source",reason:`同一ソース重複: amount=${k.amount}, desc類似>=${SIM}`,rowIndices:comp,rows:rows2,score:avg,dateDiff:days.length?Math.max(...days)-Math.min(...days):0,keeperIndex:comp[0],netAmountCalc:"-"});});
-      selected.push(...pick(same,used));
-      selected.sort((a,b)=>pr(b.type)-pr(a.type)||a.dateDiff-b.dateDiff||b.score-a.score||a.keeperIndex-b.keeperIndex);
-      const removed=new Set(),groups=[],bd={same_source:0,cross_account_1to1:0,cross_account_1to2_points:0};let gid=1;
-      selected.forEach(c=>{const g=buildGroup(`dup-${String(gid).padStart(4,"0")}`,c.type,c.reason,c.rows,c.score,c.dateDiff,c.netAmountCalc);g.removed.forEach(r=>removed.add(r.sourceIndex));groups.push(g);bd[c.type]=(bd[c.type]||0)+1;gid++;});
-      return{rows:rows.filter(r=>!removed.has(r.sourceIndex)),duplicateGroups:groups,duplicateCandidateGroups:groups.length,duplicateRemovedRows:removed.size,duplicateTypeBreakdown:bd};
+    let cleanedRows = [];
+    let baseRows = [];
+    let baseInfo = null;
+    let currentGroups = [];
+    let removedByIndex = new Map();
+    let restored = new Set();
+
+    const cols = ["date", "description", "amount", "major_category", "minor_category", "account", "memo", "is_transfer", "id"];
+    const aliases = {
+      date: ["date", "日付", "利用日", "取引日"],
+      description: ["description", "内容", "摘要", "店舗名", "お店", "用途"],
+      amount: ["amount", "金額", "金額(円)", "金額（円）", "利用金額", "収支"],
+      major_category: ["major_category", "大項目", "カテゴリ", "カテゴリー"],
+      minor_category: ["minor_category", "中項目", "サブカテゴリ", "サブカテゴリー"],
+      account: ["account", "口座", "口座名", "保有金融機関", "カード", "金融機関"],
+      memo: ["memo", "メモ", "備考"],
+      is_transfer: ["is_transfer", "振替", "振替区分", "transfer"],
+      id: ["id", "ID", "取引ID"]
+    };
+
+    function parseLine(line) {
+      const out = [];
+      let cur = "";
+      let inQ = false;
+      for (let i = 0; i < line.length; i += 1) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQ && line[i + 1] === '"') {
+            cur += '"';
+            i += 1;
+          } else {
+            inQ = !inQ;
+          }
+        } else if (ch === "," && !inQ) {
+          out.push(cur);
+          cur = "";
+        } else {
+          cur += ch;
+        }
+      }
+      out.push(cur);
+      return out;
     }
 
-    function toBool(v){return["1","true","yes","y","on","対象","振替","あり"].includes(normText(v).toLowerCase());}
-    function clean(headers,rawRows,opt){
-      const map={};cols.forEach(c=>map[c]=srcField(headers,c));
-      const transformed=rawRows.map(raw=>{const desc=normText(raw[map.description]||"");const r={date:normDate(raw[map.date]||""),description:desc,amount:normAmount(raw[map.amount]||""),major_category:normText(raw[map.major_category]||""),minor_category:normText(raw[map.minor_category]||""),account:normText(raw[map.account]||""),memo:normText(raw[map.memo]||""),is_transfer:toBool(raw[map.is_transfer]||""),id:normText(raw[map.id]||""),normalized_description:normalizeDescription(desc),merchant_key:merchantKey(desc),sourceIndex:-1,duplicateGroupId:"",duplicateClusterId:"",duplicateType:"",duplicateReason:"",duplicateScore:1,isRemovedByDefault:false};if(!r.is_transfer){const mt=`${r.major_category} ${r.minor_category}`.toLowerCase();if(mt.includes("振替")||mt.includes("transfer"))r.is_transfer=true;}return r;}).filter(r=>r.date&&r.description);
-      const after=transformed.filter(r=>!(opt.dropTransfer&&r.is_transfer)&&!(opt.dropZeroAmount&&r.amount===0));
-      const d=dedupe(after);
-      return{rows:d.rows,duplicateGroups:d.duplicateGroups,info:{inputRows:rawRows.length,normalizedRows:transformed.length,afterFilterRows:after.length,outputRows:d.rows.length,duplicateCandidateGroups:d.duplicateCandidateGroups,duplicateRemovedRows:d.duplicateRemovedRows,duplicateTypeBreakdown:d.duplicateTypeBreakdown,duplicateRule:"same_source / cross_account_1to1 / cross_account_1to2_points"}};
-    }
-
-    function sortOut(rows){rows.sort((a,b)=>a.date.localeCompare(b.date)||a.amount-b.amount||a.sourceIndex-b.sourceIndex);}
-    function toCsv(rows){const lines=[cols.join(",")];rows.forEach(row=>{lines.push(cols.map(k=>{let v=row[k];if(typeof v==="boolean")v=v?"true":"false";if(typeof v==="number")v=String(v);v=String(v??"");if(v.includes("\""))v=v.replace(/"/g,"\"\"");if(/[",\n]/.test(v))v=`"${v}"`;return v;}).join(","));});return lines.join("\n");}
-    function renderPreview(rows){previewBody.innerHTML="";const list=[...rows].sort((a,b)=>b.date.localeCompare(a.date)||b.amount-a.amount||b.sourceIndex-a.sourceIndex);list.forEach(r=>{const tr=document.createElement("tr");cols.forEach(k=>{const td=document.createElement("td");if(k==="description"){td.className="desc-cell";td.title=String(r[k]??"");}td.textContent=String(r[k]);tr.appendChild(td);});previewBody.appendChild(tr);});previewSummary.textContent=`プレビュー: 全${list.length}件（新しい日付順）`;}
-    function fmtBD(bd){return`same_source:${bd.same_source||0} / cross_account_1to1:${bd.cross_account_1to1||0} / cross_account_1to2_points:${bd.cross_account_1to2_points||0}`;}
-    function renderStats(info){statsEl.hidden=false;statsEl.innerHTML=`<div>入力行: <strong>${info.inputRows}</strong></div><div>必須項目あり: <strong>${info.normalizedRows}</strong></div><div>フィルタ後: <strong>${info.afterFilterRows}</strong></div><div>重複候補グループ: <strong>${info.duplicateCandidateGroups}</strong></div><div>重複除去件数: <strong>${info.duplicateRemovedRows}</strong></div><div>重複タイプ内訳: <strong>${fmtBD(info.duplicateTypeBreakdown)}</strong></div><div>重複ルール: <strong>${info.duplicateRule}</strong></div><div>出力行: <strong>${info.outputRows}</strong></div>`;}
-
-    function matchSearch(r,q){if(!q)return true;return`${r.description} ${r.account} ${r.amount} ${r.merchant_key}`.toLowerCase().includes(q);}
-    const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\"/g,"&quot;");
-    function renderDup(){
-      if(!currentGroups.length){dupPanel.hidden=false;dupSummary.textContent="重複候補はありません。";dupBody.innerHTML="";return;}
-      dupPanel.hidden=false;dupBody.innerHTML="";
-      const q=normText(fSearch.value).toLowerCase(),from=fFrom.value||"",to=fTo.value||"",min=normText(fMin.value)===""?NaN:Number(fMin.value),max=normText(fMax.value)===""?NaN:Number(fMax.value),state=fState.value;
-      let vg=0,vr=0,active=0;
-      currentGroups.forEach(g=>{
-        const rows=g.removed.filter(r=>{const isRem=!restored.has(r.sourceIndex);if(state==="removed"&&!isRem)return false;if(state==="restored"&&isRem)return false;if(q&&!matchSearch(r,q))return false;if(from&&r.date<from)return false;if(to&&r.date>to)return false;if(Number.isFinite(min)&&r.amount<min)return false;if(Number.isFinite(max)&&r.amount>max)return false;return true;});
-        if(!rows.length)return;vg++;vr+=rows.length;active+=rows.filter(r=>!restored.has(r.sourceIndex)).length;
-        const allRem=g.removed.every(r=>!restored.has(r.sourceIndex));
-        const h=document.createElement("tr");h.className="group";h.innerHTML=`<td colspan="10">${g.groupId} / ${g.type} <button type="button" data-action="toggle-group" data-group-id="${g.groupId}">${allRem?"このグループを復元":"このグループを除外"}</button></td>`;dupBody.appendChild(h);
-        const k=document.createElement("tr");k.innerHTML=`<td>${g.groupId}</td><td>keeper</td><td>${g.keeper.date}</td><td class="desc-cell" title="${esc(g.keeper.description)}">${esc(g.keeper.description)}</td><td>${g.keeper.amount}</td><td>${g.keeper.account}</td><td>${g.reason}</td><td>${g.dateDiff}</td><td>${g.netAmountCalc}</td><td>-</td>`;dupBody.appendChild(k);
-        rows.forEach(r=>{const isRem=!restored.has(r.sourceIndex),tr=document.createElement("tr");tr.innerHTML=`<td>${g.groupId}</td><td>${g.type}</td><td>${r.date}</td><td class="desc-cell" title="${esc(r.description)}">${esc(r.description)}</td><td>${r.amount}</td><td>${r.account}</td><td>${r.duplicateReason}</td><td>${g.dateDiff}</td><td>${g.netAmountCalc}</td><td><label><input type="checkbox" data-source-index="${r.sourceIndex}" ${isRem?"checked":""}>除外</label></td>`;dupBody.appendChild(tr);});
+    function parseCsv(text) {
+      const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter((l) => l.trim());
+      if (lines.length < 2) return { headers: [], rows: [] };
+      const headers = parseLine(lines[0]).map((h, i) => (i === 0 ? h.trim().replace(/^\uFEFF/, "") : h.trim()));
+      const rows = lines.slice(1).map((line) => {
+        const cells = parseLine(line);
+        const o = {};
+        headers.forEach((h, i) => { o[h] = (cells[i] ?? "").trim(); });
+        return o;
       });
-      dupSummary.textContent=`${vg}グループ / 表示${vr}件 / 除外中${active}件`;
+      return { headers, rows };
     }
 
-    function rebuild(){
-      const restoredRows=[];restored.forEach(i=>{const r=removedByIndex.get(i);if(r)restoredRows.push(r);});
-      cleanedRows=[...baseRows,...restoredRows];sortOut(cleanedRows);renderPreview(cleanedRows);downloadBtn.disabled=!cleanedRows.length;
-      if(baseInfo){const act=removedByIndex.size-restored.size;renderStats({...baseInfo,outputRows:baseInfo.outputRows+restoredRows.length,duplicateRemovedRows:act});}
+    function scoreDecodedText(text) {
+      const first = (text.split(/\r?\n/, 1)[0] || "").trim();
+      let s = -((text.match(/\uFFFD/g) || []).length * 5);
+      if (first.includes(",")) s += 5;
+      ["日付", "内容", "金額", "振替", "ID"].forEach((t) => { if (first.includes(t)) s += 20; });
+      return s;
+    }
+
+    function decodeCsvBytes(bytes) {
+      const candidates = [];
+      ["utf-8", "shift_jis"].forEach((enc) => {
+        try {
+          const text = new TextDecoder(enc).decode(bytes);
+          candidates.push({ enc, text, score: scoreDecodedText(text) });
+        } catch (e) {}
+      });
+      if (!candidates.length) throw new Error("CSVのデコードに失敗しました。");
+      candidates.sort((a, b) => b.score - a.score);
+      return candidates[0];
+    }
+
+    async function readCsvFile(file) {
+      const b = await file.arrayBuffer();
+      return decodeCsvBytes(new Uint8Array(b));
+    }
+
+    function srcField(headers, target) {
+      const hs = headers.map((h) => h.toLowerCase().trim());
+      for (const a of aliases[target]) {
+        const i = hs.indexOf(a.toLowerCase());
+        if (i >= 0) return headers[i];
+      }
+      return null;
+    }
+
+    const normText = (v) => (v || "").replace(/\u3000/g, " ").replace(/[ \t]+/g, " ").trim();
+    function normAmount(v) { const c = normText(v).replace(/[¥￥,\s]/g, ""); if (!c) return 0; const n = Number(c); return Number.isFinite(n) ? n : 0; }
+    function normDate(v) {
+      const t = normText(v).replace(/[.]/g, "/").replace(/-/g, "/");
+      const m = t.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+      return m ? `${m[1].padStart(4, "0")}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}` : "";
+    }
+
+    function normalizeDescription(v) {
+      let t = normText(v).normalize("NFKC").toLowerCase()
+        .replace(/【[^】]*】/g, " ").replace(/\([^)]*\)/g, " ").replace(/（[^）]*）/g, " ");
+      t = t
+        .replace(/楽天市場\(my rakuten\)|my rakuten|楽天市場店|楽天市場|ラクテンイチバ\d*|クーポン利用|ポイント利用|期間限定/g, " ")
+        .replace(/[\/\-_・ー−‐|]/g, " ")
+        .replace(/[^\p{L}\p{N}\s]/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      return t.replace(/\s+/g, "");
+    }
+
+    function merchantKey(v) {
+      const base = normText(v).normalize("NFKC").toLowerCase()
+        .replace(/【[^】]*】/g, " ")
+        .replace(/\([^)]*\)/g, " ")
+        .replace(/（[^）]*）/g, " ")
+        .replace(/クーポン利用|ポイント利用|期間限定|毎月0と5の付く日限定/g, " ")
+        .replace(/楽天市場\(my rakuten\)|my rakuten|楽天市場店|楽天市場|ラクテンイチバ\d*/g, " ")
+        .replace(/[\/\-_・ー−‐|]/g, " ")
+        .replace(/[^\p{L}\p{N}\s]/gu, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      const parts = base.split(" ")
+        .filter(Boolean)
+        .filter((p) => !["公式", "ストア", "利用", "対象", "限定", "毎月"].includes(p));
+      let stem = parts[0] || "";
+      if (!stem) stem = normalizeDescription(v);
+      if (stem.length > 18) stem = stem.slice(0, 18);
+      return stem;
+    }
+
+    const prefixMatch = (a, b) => !!(a && b && (a.startsWith(b) || b.startsWith(a)));
+    function day(s) {
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return NaN;
+      return Math.floor(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86400000);
+    }
+    function dDiff(a, b) { const x = day(a), y = day(b); if (!Number.isFinite(x) || !Number.isFinite(y)) return Infinity; return Math.abs(x - y); }
+    const within = (a, b, d) => dDiff(a, b) <= d;
+
+    function grams(t) {
+      const m = new Map();
+      if (!t) return m;
+      if (t.length === 1) { m.set(t, 1); return m; }
+      for (let i = 0; i < t.length - 1; i += 1) {
+        const g = t.slice(i, i + 2);
+        m.set(g, (m.get(g) || 0) + 1);
+      }
+      return m;
+    }
+
+    function sim(a, b) {
+      if (!a && !b) return 1;
+      if (!a || !b) return 0;
+      if (a === b) return 1;
+      const A = grams(a), B = grams(b);
+      let ov = 0, sa = 0, sb = 0;
+      A.forEach((c) => { sa += c; });
+      B.forEach((c) => { sb += c; });
+      A.forEach((ca, g) => { ov += Math.min(ca, B.get(g) || 0); });
+      return sa + sb ? (2 * ov) / (sa + sb) : 0;
+    }
+
+    function typePriority(t) { return t === "cross_account_1to2_points" ? 3 : t === "cross_account_1to1" ? 2 : 1; }
+
+    function buildGroup(id, type, reason, rows, score, dateDiff, net, debug = "") {
+      const sorted = [...rows].sort((a, b) => a.sourceIndex - b.sourceIndex);
+      const keeper = sorted[0];
+      const removed = sorted.slice(1);
+      keeper.duplicateType = type;
+      keeper.duplicateReason = reason;
+      keeper.duplicateGroupId = id;
+      keeper.duplicateClusterId = id;
+      keeper.duplicateScore = 1;
+      keeper.isRemovedByDefault = false;
+      removed.forEach((r) => {
+        r.duplicateType = type;
+        r.duplicateReason = reason;
+        r.duplicateGroupId = id;
+        r.duplicateClusterId = id;
+        r.duplicateScore = score;
+        r.isRemovedByDefault = true;
+      });
+      return { groupId: id, type, reason, rows: sorted, keeper, removed, score, dateDiff, netAmountCalc: net, debug };
+    }
+
+    function pick(cands, used) {
+      const out = [];
+      [...cands]
+        .sort((a, b) => typePriority(b.type) - typePriority(a.type)
+          || a.dateDiff - b.dateDiff
+          || b.score - a.score
+          || (a.bundleRowCount || 99) - (b.bundleRowCount || 99)
+          || a.keeperIndex - b.keeperIndex)
+        .forEach((c) => {
+          if (c.rowIndices.some((i) => used.has(i))) return;
+          c.rowIndices.forEach((i) => used.add(i));
+          out.push(c);
+        });
+      return out;
+    }
+
+    function dedupe(rows) {
+      rows.forEach((r, i) => {
+        r.sourceIndex = i;
+        r.duplicateGroupId = "";
+        r.duplicateClusterId = "";
+        r.duplicateType = "";
+        r.duplicateReason = "";
+        r.duplicateScore = 1;
+        r.isRemovedByDefault = false;
+      });
+
+      const negatives = rows.filter((r) => r.amount < 0 && !r.is_transfer);
+      const positives = rows.filter((r) => r.amount > 0 && !r.is_transfer);
+      const used = new Set();
+      const selected = [];
+
+      // A) cross_account_1to2_points: market negative + market positive bundle -> card negative
+      const bundleCandidates = [];
+      negatives.forEach((marketNeg) => {
+        const marketPosCandidates = positives.filter((p) =>
+          p.account === marketNeg.account &&
+          prefixMatch(p.merchant_key, marketNeg.merchant_key) &&
+          within(p.date, marketNeg.date, BUNDLE_DAY_WINDOW)
+        );
+        if (!marketPosCandidates.length) return;
+
+        // Build compact positive bundles (size 1..2) to avoid over-bundling.
+        const posBundles = [];
+        for (let i = 0; i < marketPosCandidates.length; i += 1) {
+          posBundles.push([marketPosCandidates[i]]);
+          for (let j = i + 1; j < marketPosCandidates.length; j += 1) {
+            posBundles.push([marketPosCandidates[i], marketPosCandidates[j]]);
+          }
+        }
+
+        posBundles.forEach((posBundle) => {
+          const negSum = marketNeg.amount;
+          const posSum = posBundle.reduce((s, p) => s + p.amount, 0);
+          const net = Math.abs(negSum + posSum);
+          if (net === 0) return;
+
+          const members = [marketNeg, ...posBundle];
+          negatives.forEach((card) => {
+            if (card.sourceIndex === marketNeg.sourceIndex) return;
+            if (card.account === marketNeg.account) return;
+            if (!prefixMatch(card.merchant_key, marketNeg.merchant_key)) return;
+            if (Math.abs(card.amount) !== net) return;
+            const dd = Math.min(...members.map((m) => dDiff(card.date, m.date)));
+            if (dd > MAX_DAY_DIFF) return;
+
+            const rowIndices = [card.sourceIndex, ...members.map((m) => m.sourceIndex)].sort((a, b) => a - b);
+            const uniq = [...new Set(rowIndices)];
+            const score = sim(card.normalized_description, marketNeg.normalized_description);
+            bundleCandidates.push({
+              type: "cross_account_1to2_points",
+              reason: `純支出一致: ${negSum} + ${posSum} => ${negSum + posSum}`,
+              rowIndices: uniq,
+              rows: [card, ...members.filter((m) => m.sourceIndex !== card.sourceIndex)],
+              score,
+              dateDiff: dd,
+              bundleRowCount: members.length,
+              keeperIndex: Math.min(...uniq),
+              cardIndex: card.sourceIndex,
+              netAmountCalc: `${negSum} + ${posSum} => ${negSum + posSum}`
+            });
+          });
+        });
+      });
+
+      // Keep best candidate per card first, then pass to global non-overlap picker.
+      const bestByCard = new Map();
+      bundleCandidates.forEach((c) => {
+        const prev = bestByCard.get(c.cardIndex);
+        if (!prev) {
+          bestByCard.set(c.cardIndex, c);
+          return;
+        }
+        const better =
+          c.dateDiff < prev.dateDiff ||
+          (c.dateDiff === prev.dateDiff && c.score > prev.score) ||
+          (c.dateDiff === prev.dateDiff && c.score === prev.score && (c.bundleRowCount || 99) < (prev.bundleRowCount || 99)) ||
+          (c.dateDiff === prev.dateDiff && c.score === prev.score && (c.bundleRowCount || 99) === (prev.bundleRowCount || 99) && c.keeperIndex < prev.keeperIndex);
+        if (better) bestByCard.set(c.cardIndex, c);
+      });
+      selected.push(...pick([...bestByCard.values()], used));
+
+      // B) cross account 1:1 on remaining negatives
+      const pairCandidates = [];
+      const negRemaining = negatives.filter((r) => !used.has(r.sourceIndex));
+      for (let i = 0; i < negRemaining.length; i += 1) {
+        const a = negRemaining[i];
+        for (let j = i + 1; j < negRemaining.length; j += 1) {
+          const b = negRemaining[j];
+          if (a.account === b.account) continue;
+          if (Math.abs(a.amount) !== Math.abs(b.amount)) continue;
+          if (!prefixMatch(a.merchant_key, b.merchant_key)) continue;
+          const dd = dDiff(a.date, b.date);
+          if (dd > MAX_DAY_DIFF) continue;
+          const idx = [a.sourceIndex, b.sourceIndex].sort((x, y) => x - y);
+          pairCandidates.push({
+            type: "cross_account_1to1",
+            reason: `異口座同額一致: ${a.amount} vs ${b.amount}`,
+            rowIndices: idx,
+            rows: [a, b],
+            score: sim(a.normalized_description, b.normalized_description),
+            dateDiff: dd,
+            bundleRowCount: 2,
+            keeperIndex: idx[0],
+            netAmountCalc: "-"
+          });
+        }
+      }
+      const pairMap = new Map();
+      pairCandidates.forEach((c) => {
+        const key = c.rowIndices.join("|");
+        const prev = pairMap.get(key);
+        if (!prev || c.score > prev.score) pairMap.set(key, c);
+      });
+      selected.push(...pick([...pairMap.values()], used));
+
+      // C) same_source on remaining negatives (same account only)
+      const sameCandidates = [];
+      const sameRows = negatives.filter((r) => !used.has(r.sourceIndex));
+      const byAcct = new Map();
+      sameRows.forEach((r) => {
+        const arr = byAcct.get(r.account) || [];
+        arr.push(r);
+        byAcct.set(r.account, arr);
+      });
+
+      byAcct.forEach((arr) => {
+        const adj = new Map();
+        arr.forEach((r) => adj.set(r.sourceIndex, new Set()));
+        for (let i = 0; i < arr.length; i += 1) {
+          const a = arr[i];
+          for (let j = i + 1; j < arr.length; j += 1) {
+            const b = arr[j];
+            if (a.amount !== b.amount) continue;
+            if (!prefixMatch(a.merchant_key, b.merchant_key)) continue;
+            if (dDiff(a.date, b.date) > MAX_DAY_DIFF) continue;
+            const s = sim(a.normalized_description, b.normalized_description);
+            if (s < SIM) continue;
+            adj.get(a.sourceIndex).add(b.sourceIndex);
+            adj.get(b.sourceIndex).add(a.sourceIndex);
+          }
+        }
+
+        const seen = new Set();
+        arr.forEach((seed) => {
+          if (seen.has(seed.sourceIndex)) return;
+          const st = [seed.sourceIndex];
+          const comp = [];
+          while (st.length) {
+            const x = st.pop();
+            if (seen.has(x)) continue;
+            seen.add(x);
+            comp.push(x);
+            adj.get(x).forEach((n) => { if (!seen.has(n)) st.push(n); });
+          }
+          if (comp.length <= 1) return;
+          comp.sort((a, b) => a - b);
+          const rows2 = comp.map((idx) => rows[idx]);
+          const k = rows2[0];
+          const scores = rows2.slice(1).map((r) => sim(k.normalized_description, r.normalized_description));
+          const avg = scores.reduce((s, n) => s + n, 0) / (scores.length || 1);
+          const days = rows2.map((r) => day(r.date)).filter(Number.isFinite);
+          sameCandidates.push({
+            type: "same_source",
+            reason: `同一ソース重複: amount=${k.amount}, desc類似>=${SIM}`,
+            rowIndices: comp,
+            rows: rows2,
+            score: avg,
+            dateDiff: days.length ? Math.max(...days) - Math.min(...days) : 0,
+            bundleRowCount: rows2.length,
+            keeperIndex: comp[0],
+            netAmountCalc: "-"
+          });
+        });
+      });
+      selected.push(...pick(sameCandidates, used));
+
+      selected.sort((a, b) => typePriority(b.type) - typePriority(a.type) || a.dateDiff - b.dateDiff || b.score - a.score || a.keeperIndex - b.keeperIndex);
+
+      const removed = new Set();
+      const groups = [];
+      const breakdown = { same_source: 0, cross_account_1to1: 0, cross_account_1to2_points: 0 };
+      let gid = 1;
+      selected.forEach((c) => {
+        const g = buildGroup(`dup-${String(gid).padStart(4, "0")}`, c.type, c.reason, c.rows, c.score, c.dateDiff, c.netAmountCalc, c.debug || "");
+        g.removed.forEach((r) => removed.add(r.sourceIndex));
+        groups.push(g);
+        breakdown[c.type] = (breakdown[c.type] || 0) + 1;
+        gid += 1;
+      });
+
+      return {
+        rows: rows.filter((r) => !removed.has(r.sourceIndex)),
+        duplicateGroups: groups,
+        duplicateCandidateGroups: groups.length,
+        duplicateRemovedRows: removed.size,
+        duplicateTypeBreakdown: breakdown
+      };
+    }
+
+    function toBool(v) { return ["1", "true", "yes", "y", "on", "対象", "振替", "あり"].includes(normText(v).toLowerCase()); }
+
+    function clean(headers, rawRows, opt) {
+      const map = {};
+      cols.forEach((c) => { map[c] = srcField(headers, c); });
+
+      const transformed = rawRows.map((raw) => {
+        const desc = normText(raw[map.description] || "");
+        const r = {
+          date: normDate(raw[map.date] || ""),
+          description: desc,
+          amount: normAmount(raw[map.amount] || ""),
+          major_category: normText(raw[map.major_category] || ""),
+          minor_category: normText(raw[map.minor_category] || ""),
+          account: normText(raw[map.account] || ""),
+          memo: normText(raw[map.memo] || ""),
+          is_transfer: toBool(raw[map.is_transfer] || ""),
+          id: normText(raw[map.id] || ""),
+          normalized_description: normalizeDescription(desc),
+          merchant_key: merchantKey(desc),
+          sourceIndex: -1,
+          duplicateGroupId: "",
+          duplicateClusterId: "",
+          duplicateType: "",
+          duplicateReason: "",
+          duplicateScore: 1,
+          isRemovedByDefault: false
+        };
+        if (!r.is_transfer) {
+          const mt = `${r.major_category} ${r.minor_category}`.toLowerCase();
+          if (mt.includes("振替") || mt.includes("transfer")) r.is_transfer = true;
+        }
+        return r;
+      }).filter((r) => r.date && r.description);
+
+      const after = transformed.filter((r) => !(opt.dropTransfer && r.is_transfer) && !(opt.dropZeroAmount && r.amount === 0));
+      const d = dedupe(after);
+      return {
+        rows: d.rows,
+        duplicateGroups: d.duplicateGroups,
+        info: {
+          inputRows: rawRows.length,
+          normalizedRows: transformed.length,
+          afterFilterRows: after.length,
+          outputRows: d.rows.length,
+          duplicateCandidateGroups: d.duplicateCandidateGroups,
+          duplicateRemovedRows: d.duplicateRemovedRows,
+          duplicateTypeBreakdown: d.duplicateTypeBreakdown,
+          duplicateRule: "same_source / cross_account_1to1 / cross_account_1to2_points"
+        }
+      };
+    }
+
+    function sortOut(rows) { rows.sort((a, b) => a.date.localeCompare(b.date) || a.amount - b.amount || a.sourceIndex - b.sourceIndex); }
+
+    function toCsv(rows) {
+      const lines = [cols.join(",")];
+      rows.forEach((row) => {
+        lines.push(cols.map((k) => {
+          let v = row[k];
+          if (typeof v === "boolean") v = v ? "true" : "false";
+          if (typeof v === "number") v = String(v);
+          v = String(v ?? "");
+          if (v.includes('"')) v = v.replace(/"/g, '""');
+          if (/[",\n]/.test(v)) v = `"${v}"`;
+          return v;
+        }).join(","));
+      });
+      return lines.join("\n");
+    }
+
+    function renderPreview(rows) {
+      previewBody.innerHTML = "";
+      const list = [...rows].sort((a, b) => b.date.localeCompare(a.date) || b.amount - a.amount || b.sourceIndex - a.sourceIndex);
+      list.forEach((r) => {
+        const tr = document.createElement("tr");
+        cols.forEach((k) => {
+          const td = document.createElement("td");
+          if (k === "description") {
+            td.className = "desc-cell";
+            td.title = String(r[k] ?? "");
+          }
+          td.textContent = String(r[k]);
+          tr.appendChild(td);
+        });
+        previewBody.appendChild(tr);
+      });
+      previewSummary.textContent = `プレビュー: 全${list.length}件（新しい日付順）`;
+    }
+
+    function fmtBD(bd) {
+      return `same_source:${bd.same_source || 0} / cross_account_1to1:${bd.cross_account_1to1 || 0} / cross_account_1to2_points:${bd.cross_account_1to2_points || 0}`;
+    }
+
+    function renderStats(info) {
+      statsEl.hidden = false;
+      statsEl.innerHTML = `
+        <div>入力行: <strong>${info.inputRows}</strong></div>
+        <div>必須項目あり: <strong>${info.normalizedRows}</strong></div>
+        <div>フィルタ後: <strong>${info.afterFilterRows}</strong></div>
+        <div>重複候補グループ: <strong>${info.duplicateCandidateGroups}</strong></div>
+        <div>重複除去件数: <strong>${info.duplicateRemovedRows}</strong></div>
+        <div>重複タイプ内訳: <strong>${fmtBD(info.duplicateTypeBreakdown)}</strong></div>
+        <div>重複ルール: <strong>${info.duplicateRule}</strong></div>
+        <div>出力行: <strong>${info.outputRows}</strong></div>
+      `;
+    }
+
+    function esc(s) {
+      return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
+    }
+
+    function matchSearch(r, q) {
+      if (!q) return true;
+      return `${r.description} ${r.account} ${r.amount} ${r.merchant_key}`.toLowerCase().includes(q);
+    }
+
+    function renderDup() {
+      if (!currentGroups.length) {
+        dupPanel.hidden = false;
+        dupSummary.textContent = "重複候補はありません。";
+        dupBody.innerHTML = "";
+        return;
+      }
+
+      dupPanel.hidden = false;
+      dupBody.innerHTML = "";
+
+      const q = normText(fSearch.value).toLowerCase();
+      const from = fFrom.value || "";
+      const to = fTo.value || "";
+      const min = normText(fMin.value) === "" ? NaN : Number(fMin.value);
+      const max = normText(fMax.value) === "" ? NaN : Number(fMax.value);
+      const state = fState.value;
+
+      let vg = 0, vr = 0, active = 0;
+      currentGroups.forEach((g) => {
+        const rows = g.removed.filter((r) => {
+          const isRem = !restored.has(r.sourceIndex);
+          if (state === "removed" && !isRem) return false;
+          if (state === "restored" && isRem) return false;
+          if (q && !matchSearch(r, q)) return false;
+          if (from && r.date < from) return false;
+          if (to && r.date > to) return false;
+          if (Number.isFinite(min) && r.amount < min) return false;
+          if (Number.isFinite(max) && r.amount > max) return false;
+          return true;
+        });
+        if (!rows.length) return;
+
+        vg += 1;
+        vr += rows.length;
+        active += rows.filter((r) => !restored.has(r.sourceIndex)).length;
+
+        const allRem = g.removed.every((r) => !restored.has(r.sourceIndex));
+        const h = document.createElement("tr");
+        h.className = "group";
+        h.innerHTML = `<td colspan="10">${g.groupId} / ${g.type} <button type="button" data-action="toggle-group" data-group-id="${g.groupId}">${allRem ? "このグループを復元" : "このグループを除外"}</button></td>`;
+        dupBody.appendChild(h);
+
+        const k = document.createElement("tr");
+        k.innerHTML = `
+          <td>${g.groupId}</td><td>keeper</td><td>${g.keeper.date}</td>
+          <td class="desc-cell" title="${esc(g.keeper.description)}">${esc(g.keeper.description)}</td>
+          <td>${g.keeper.amount}</td><td>${g.keeper.account}</td><td>${g.reason}</td><td>${g.dateDiff}</td><td>${g.netAmountCalc}</td><td>-</td>
+        `;
+        dupBody.appendChild(k);
+
+        rows.forEach((r) => {
+          const isRem = !restored.has(r.sourceIndex);
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>${g.groupId}</td><td>${g.type}</td><td>${r.date}</td>
+            <td class="desc-cell" title="${esc(r.description)}">${esc(r.description)}</td>
+            <td>${r.amount}</td><td>${r.account}</td><td>${r.duplicateReason}</td><td>${g.dateDiff}</td><td>${g.netAmountCalc}</td>
+            <td><label><input type="checkbox" data-source-index="${r.sourceIndex}" ${isRem ? "checked" : ""}>除外</label></td>
+          `;
+          dupBody.appendChild(tr);
+        });
+      });
+
+      dupSummary.textContent = `${vg}グループ / 表示${vr}件 / 除外中${active}件`;
+    }
+
+    function rebuild() {
+      const restoredRows = [];
+      restored.forEach((i) => {
+        const r = removedByIndex.get(i);
+        if (r) restoredRows.push(r);
+      });
+
+      cleanedRows = [...baseRows, ...restoredRows];
+      sortOut(cleanedRows);
+      renderPreview(cleanedRows);
+      downloadBtn.disabled = !cleanedRows.length;
+
+      if (baseInfo) {
+        const act = removedByIndex.size - restored.size;
+        renderStats({ ...baseInfo, outputRows: baseInfo.outputRows + restoredRows.length, duplicateRemovedRows: act });
+      }
+
       renderDup();
     }
 
-    [fSearch,fFrom,fTo,fMin,fMax,fState].forEach(el=>{el.addEventListener("input",renderDup);el.addEventListener("change",renderDup);});
-    allRemove.addEventListener("click",()=>{restored=new Set();rebuild();});
-    allRestore.addEventListener("click",()=>{restored=new Set(removedByIndex.keys());rebuild();});
-    dupBody.addEventListener("change",e=>{const t=e.target;if(!(t instanceof HTMLInputElement)||t.type!=="checkbox")return;const i=Number(t.dataset.sourceIndex);if(!Number.isFinite(i))return;if(t.checked)restored.delete(i);else restored.add(i);rebuild();});
-    dupBody.addEventListener("click",e=>{const t=e.target;if(!(t instanceof HTMLButtonElement)||t.dataset.action!=="toggle-group")return;const g=currentGroups.find(x=>x.groupId===t.dataset.groupId);if(!g)return;const all=g.removed.every(r=>!restored.has(r.sourceIndex));if(all)g.removed.forEach(r=>restored.add(r.sourceIndex));else g.removed.forEach(r=>restored.delete(r.sourceIndex));rebuild();});
-
-    cleanBtn.addEventListener("click",async()=>{
-      const file=document.getElementById("csvFile").files[0];
-      if(!file){statusEl.textContent="CSVファイルを選択してください。";return;}
-      statusEl.textContent="CSVを読み込み中...";dupPanel.hidden=true;dupBody.innerHTML="";statsEl.hidden=true;
-      try{
-        const decoded=await readCsvFile(file),parsed=parseCsv(decoded.text);
-        if(!parsed.rows.length){statusEl.textContent="有効なデータ行がありません。";downloadBtn.disabled=true;return;}
-        const result=clean(parsed.headers,parsed.rows,{dropTransfer:document.getElementById("dropTransfer").checked,dropZeroAmount:document.getElementById("dropZeroAmount").checked});
-        baseRows=result.rows;baseInfo=result.info;currentGroups=result.duplicateGroups;removedByIndex=new Map();restored=new Set();currentGroups.forEach(g=>g.removed.forEach(r=>removedByIndex.set(r.sourceIndex,r)));
-        rebuild();statusEl.textContent=`完了: ${cleanedRows.length}件を出力できます。（encoding: ${decoded.enc}）`;
-      }catch(err){downloadBtn.disabled=true;statusEl.textContent=`エラー: ${err.message}`;}
+    [fSearch, fFrom, fTo, fMin, fMax, fState].forEach((el) => {
+      el.addEventListener("input", renderDup);
+      el.addEventListener("change", renderDup);
     });
 
-    downloadBtn.addEventListener("click",()=>{if(!cleanedRows.length)return;const blob=new Blob([toCsv(cleanedRows)],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a"),now=new Date(),y=now.getFullYear(),m=String(now.getMonth()+1).padStart(2,"0");a.href=url;a.download=`mf-cleaned-${y}${m}.csv`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);});
+    allRemove.addEventListener("click", () => {
+      restored = new Set();
+      rebuild();
+    });
+
+    allRestore.addEventListener("click", () => {
+      restored = new Set(removedByIndex.keys());
+      rebuild();
+    });
+
+    dupBody.addEventListener("change", (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLInputElement) || t.type !== "checkbox") return;
+      const i = Number(t.dataset.sourceIndex);
+      if (!Number.isFinite(i)) return;
+      if (t.checked) restored.delete(i); else restored.add(i);
+      rebuild();
+    });
+
+    dupBody.addEventListener("click", (e) => {
+      const t = e.target;
+      if (!(t instanceof HTMLButtonElement) || t.dataset.action !== "toggle-group") return;
+      const g = currentGroups.find((x) => x.groupId === t.dataset.groupId);
+      if (!g) return;
+      const all = g.removed.every((r) => !restored.has(r.sourceIndex));
+      if (all) g.removed.forEach((r) => restored.add(r.sourceIndex));
+      else g.removed.forEach((r) => restored.delete(r.sourceIndex));
+      rebuild();
+    });
+
+    cleanBtn.addEventListener("click", async () => {
+      const file = document.getElementById("csvFile").files[0];
+      if (!file) {
+        statusEl.textContent = "CSVファイルを選択してください。";
+        return;
+      }
+
+      statusEl.textContent = "CSVを読み込み中...";
+      dupPanel.hidden = true;
+      dupBody.innerHTML = "";
+      statsEl.hidden = true;
+
+      try {
+        const decoded = await readCsvFile(file);
+        const parsed = parseCsv(decoded.text);
+        if (!parsed.rows.length) {
+          statusEl.textContent = "有効なデータ行がありません。";
+          downloadBtn.disabled = true;
+          return;
+        }
+
+        const result = clean(parsed.headers, parsed.rows, {
+          dropTransfer: document.getElementById("dropTransfer").checked,
+          dropZeroAmount: document.getElementById("dropZeroAmount").checked
+        });
+
+        baseRows = result.rows;
+        baseInfo = result.info;
+        currentGroups = result.duplicateGroups;
+        removedByIndex = new Map();
+        restored = new Set();
+        currentGroups.forEach((g) => g.removed.forEach((r) => removedByIndex.set(r.sourceIndex, r)));
+
+        rebuild();
+        statusEl.textContent = `完了: ${cleanedRows.length}件を出力できます。（encoding: ${decoded.enc}）`;
+      } catch (err) {
+        downloadBtn.disabled = true;
+        statusEl.textContent = `エラー: ${err.message}`;
+      }
+    });
+
+    downloadBtn.addEventListener("click", () => {
+      if (!cleanedRows.length) return;
+      const blob = new Blob([toCsv(cleanedRows)], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, "0");
+      a.href = url;
+      a.download = `mf-cleaned-${y}${m}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
   </script>
 </body>
 </html>
-
-
