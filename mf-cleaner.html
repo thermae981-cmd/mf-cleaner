@@ -34,7 +34,13 @@
       <label><input id="dropTransfer" type="checkbox" checked>振替除外</label>
       <label><input id="dropZeroAmount" type="checkbox" checked>0円除外</label>
       <button id="cleanBtn" type="button">クリーニング実行</button>
-      <button id="downloadBtn" class="secondary" type="button" disabled>CSVダウンロード</button>
+      <select id="downloadFormat" aria-label="ダウンロード形式">
+        <option value="csv_utf8_bom" selected>CSV (UTF-8 BOM / Excel推奨)</option>
+        <option value="csv_utf8">CSV (UTF-8)</option>
+        <option value="tsv_utf8_bom">TSV (UTF-8 BOM)</option>
+        <option value="excel_xml">Excel XML 形式 (.xml)</option>
+      </select>
+      <button id="downloadBtn" class="secondary" type="button" disabled>ダウンロード</button>
     </div>
 
     <div id="status" class="status"></div>
@@ -90,6 +96,7 @@
 
     const cleanBtn = document.getElementById("cleanBtn");
     const downloadBtn = document.getElementById("downloadBtn");
+    const downloadFormatEl = document.getElementById("downloadFormat");
     const statusEl = document.getElementById("status");
     const statsEl = document.getElementById("stats");
     const dupPanel = document.getElementById("dupPanel");
@@ -568,8 +575,8 @@
 
     function sortOut(rows) { rows.sort((a, b) => a.date.localeCompare(b.date) || a.amount - b.amount || a.sourceIndex - b.sourceIndex); }
 
-    function toCsv(rows) {
-      const lines = [cols.join(",")];
+    function toDelimited(rows, delimiter) {
+      const lines = [cols.join(delimiter)];
       rows.forEach((row) => {
         lines.push(cols.map((k) => {
           let v = row[k];
@@ -577,11 +584,56 @@
           if (typeof v === "number") v = String(v);
           v = String(v ?? "");
           if (v.includes('"')) v = v.replace(/"/g, '""');
-          if (/[",\n]/.test(v)) v = `"${v}"`;
+          if (delimiter === "," && /[",\n]/.test(v)) v = `"${v}"`;
+          if (delimiter === "\t") v = v.replace(/\t/g, " ").replace(/\r?\n/g, " ");
           return v;
-        }).join(","));
+        }).join(delimiter));
       });
       return lines.join("\n");
+    }
+
+    function getDownloadPayload(rows, format) {
+      function xmlEsc(v) {
+        return String(v ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&apos;");
+      }
+      function toExcelXml(rowsForXml) {
+        const headerCells = cols.map((c) => `<Cell><Data ss:Type="String">${xmlEsc(c)}</Data></Cell>`).join("");
+        const dataRows = rowsForXml.map((row) => {
+          const cells = cols.map((k) => {
+            const v = row[k];
+            if (typeof v === "number") return `<Cell><Data ss:Type="Number">${v}</Data></Cell>`;
+            if (typeof v === "boolean") return `<Cell><Data ss:Type="String">${v ? "true" : "false"}</Data></Cell>`;
+            return `<Cell><Data ss:Type="String">${xmlEsc(v)}</Data></Cell>`;
+          }).join("");
+          return `<Row>${cells}</Row>`;
+        }).join("");
+
+        return `<?xml version="1.0" encoding="UTF-8"?>\n` +
+          `<?mso-application progid="Excel.Sheet"?>\n` +
+          `<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" ` +
+          `xmlns:o="urn:schemas-microsoft-com:office:office" ` +
+          `xmlns:x="urn:schemas-microsoft-com:office:excel" ` +
+          `xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n` +
+          `<Worksheet ss:Name="mf-cleaned">\n` +
+          `<Table>\n<Row>${headerCells}</Row>\n${dataRows}\n</Table>\n` +
+          `</Worksheet>\n</Workbook>`;
+      }
+
+      if (format === "csv_utf8") {
+        return { text: toDelimited(rows, ","), mime: "text/csv;charset=utf-8;", ext: "csv" };
+      }
+      if (format === "tsv_utf8_bom") {
+        return { text: "\uFEFF" + toDelimited(rows, "\t"), mime: "text/tab-separated-values;charset=utf-8;", ext: "tsv" };
+      }
+      if (format === "excel_xml") {
+        return { text: toExcelXml(rows), mime: "application/vnd.ms-excel;charset=utf-8;", ext: "xml" };
+      }
+      return { text: "\uFEFF" + toDelimited(rows, ","), mime: "text/csv;charset=utf-8;", ext: "csv" };
     }
 
     function renderPreview(rows) {
@@ -795,14 +847,16 @@
 
     downloadBtn.addEventListener("click", () => {
       if (!cleanedRows.length) return;
-      const blob = new Blob([toCsv(cleanedRows)], { type: "text/csv;charset=utf-8;" });
+      const format = downloadFormatEl.value || "csv_utf8_bom";
+      const payload = getDownloadPayload(cleanedRows, format);
+      const blob = new Blob([payload.text], { type: payload.mime });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const now = new Date();
       const y = now.getFullYear();
       const m = String(now.getMonth() + 1).padStart(2, "0");
       a.href = url;
-      a.download = `mf-cleaned-${y}${m}.csv`;
+      a.download = `mf-cleaned-${y}${m}.${payload.ext}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
