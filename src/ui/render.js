@@ -22,7 +22,7 @@
       const key = th.dataset.key;
       if (key === sortKey) {
         ind.classList.add("active");
-        ind.textContent = sortDir === 1 ? " ▲" : " ▼";
+        ind.textContent = sortDir === 1 ? " ^" : " v";
       } else {
         ind.classList.remove("active");
         ind.textContent = "";
@@ -53,7 +53,7 @@
 
     previewBody.textContent = "";
     previewBody.appendChild(frag);
-    previewSummary.textContent = `${list.length}行`;
+    previewSummary.textContent = `${list.length} rows`;
     updateSortIndicators(previewHead, sortKey, sortDir);
   }
 
@@ -68,13 +68,14 @@
     const grid = document.createElement("div");
     grid.className = "stats-grid";
     const cards = [
-      { label: "入力行", value: info.inputRows },
-      { label: "必須項目あり", value: info.normalizedRows },
-      { label: "フィルタ後", value: info.afterFilterRows },
-      { label: "重複候補グループ", value: info.duplicateCandidateGroups },
-      { label: "重複除去件数", value: info.duplicateRemovedRows },
-      { label: "出力行", value: info.outputRows }
+      { label: "Input Rows", value: info.inputRows },
+      { label: "Normalized", value: info.normalizedRows },
+      { label: "After Filter", value: info.afterFilterRows },
+      { label: "Duplicate Groups", value: info.duplicateCandidateGroups },
+      { label: "Removed Rows", value: info.duplicateRemovedRows },
+      { label: "Output Rows", value: info.outputRows }
     ];
+
     cards.forEach((c) => {
       const card = document.createElement("div");
       card.className = "stat-card";
@@ -92,7 +93,7 @@
 
     const extra = document.createElement("div");
     extra.style.cssText = "margin-top:8px;font-size:11px;color:#5f564a;";
-    extra.textContent = `タイプ内訳: ${formatBreakdown(info.duplicateTypeBreakdown)} / ルール: ${info.duplicateRule}`;
+    extra.textContent = `Type breakdown: ${formatBreakdown(info.duplicateTypeBreakdown)} / Rule: ${info.duplicateRule}`;
     statsEl.appendChild(extra);
   }
 
@@ -105,7 +106,7 @@
     const { dupPanel, dupBody, dupSummary, fSearch, fFrom, fTo, fMin, fMax, fState } = els;
     if (!groups.length) {
       dupPanel.hidden = false;
-      dupSummary.textContent = "重複候補はありません。";
+      dupSummary.textContent = "No duplicate candidates.";
       dupBody.textContent = "";
       return;
     }
@@ -119,9 +120,9 @@
     const state = fState.value;
 
     const frag = document.createDocumentFragment();
-    let vg = 0;
-    let vr = 0;
-    let active = 0;
+    let visibleGroups = 0;
+    let visibleRows = 0;
+    let activeRemoved = 0;
 
     groups.forEach((g) => {
       const rows = g.removed.filter((r) => {
@@ -137,9 +138,9 @@
       });
       if (!rows.length) return;
 
-      vg += 1;
-      vr += rows.length;
-      active += rows.filter((r) => !restored.has(r.sourceIndex)).length;
+      visibleGroups += 1;
+      visibleRows += rows.length;
+      activeRemoved += rows.filter((r) => !restored.has(r.sourceIndex)).length;
       const allRemoved = g.removed.every((r) => !restored.has(r.sourceIndex));
 
       const h = document.createElement("tr");
@@ -151,7 +152,7 @@
       btn.type = "button";
       btn.dataset.action = "toggle-group";
       btn.dataset.groupId = g.groupId;
-      btn.textContent = allRemoved ? "このグループを復元" : "このグループを除外";
+      btn.textContent = allRemoved ? "Restore Group" : "Remove Group";
       htd.appendChild(btn);
       h.appendChild(htd);
       frag.appendChild(h);
@@ -162,7 +163,7 @@
       keeper.appendChild(td(g.keeper.description, "desc-cell", g.keeper.description));
       keeper.appendChild(td(fmtAmount(g.keeper.amount), "amt-col"));
       keeper.appendChild(td(g.keeper.account));
-      keeper.appendChild(td("採用"));
+      keeper.appendChild(td("Kept"));
       keeper.appendChild(td(g.dateDiff));
       keeper.appendChild(td(g.type === "cross_account_1to2_points" ? g.netAmountCalc : "-"));
       frag.appendChild(keeper);
@@ -183,7 +184,7 @@
         cb.dataset.sourceIndex = String(r.sourceIndex);
         cb.checked = isRemoved;
         label.appendChild(cb);
-        label.appendChild(document.createTextNode("重複として除外"));
+        label.appendChild(document.createTextNode(" Remove as duplicate"));
         actionTd.appendChild(label);
         tr.appendChild(actionTd);
         frag.appendChild(tr);
@@ -192,7 +193,7 @@
 
     dupBody.textContent = "";
     dupBody.appendChild(frag);
-    dupSummary.textContent = `${vg}グループ / 表示${vr}行 / 除外中${active}行`;
+    dupSummary.textContent = `${visibleGroups} groups / ${visibleRows} shown / ${activeRemoved} active removed`;
   }
 
   window.MFCleanerRender = { fmtAmount, updateSortIndicators, renderPreview, renderStats, renderDuplicatePanel };

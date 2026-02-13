@@ -57,12 +57,12 @@
   function updateUndoUI() {
     undoBtn.disabled = !S.canUndo(state);
     redoBtn.disabled = !S.canRedo(state);
-    undoInfo.textContent = state.undoStack.length ? `(履歴: ${state.undoStack.length})` : "";
+    undoInfo.textContent = state.undoStack.length ? `(History: ${state.undoStack.length})` : "";
   }
 
   function showLoading(msg) {
     const textEl = loadingOverlay.querySelector(".loading-text");
-    if (textEl) textEl.textContent = msg || "処理中...";
+    if (textEl) textEl.textContent = msg || "Processing...";
     loadingOverlay.classList.add("active");
     cleanBtn.disabled = true;
   }
@@ -90,7 +90,7 @@
           body.classList.add("collapsed");
           body.style.maxHeight = "0";
         });
-        icon.textContent = "▸";
+        icon.textContent = ">";
       } else {
         body.classList.remove("collapsed");
         body.style.maxHeight = `${body.scrollHeight}px`;
@@ -98,7 +98,7 @@
           body.removeEventListener("transitionend", handler);
           body.style.maxHeight = "";
         });
-        icon.textContent = "▾";
+        icon.textContent = "v";
       }
     });
   }
@@ -108,7 +108,7 @@
 
   paramsToggle.addEventListener("click", () => {
     const open = paramsPanel.classList.toggle("open");
-    paramsToggle.textContent = open ? "詳細設定 ▲" : "詳細設定 ▼";
+    paramsToggle.textContent = open ? "Advanced Settings ^" : "Advanced Settings v";
   });
 
   function handleFile(file) {
@@ -136,7 +136,7 @@
     if (file && (/\.(csv|tsv)$/i.test(file.name) || file.type === "text/csv" || file.type === "text/tab-separated-values")) {
       handleFile(file);
     } else {
-      statusEl.textContent = "CSV または TSV ファイルのみ対応しています。";
+      statusEl.textContent = "Only CSV or TSV files are supported.";
     }
   });
 
@@ -300,11 +300,11 @@
   cleanBtn.addEventListener("click", async () => {
     const file = csvFileEl.files[0];
     if (!file) {
-      statusEl.textContent = "CSV/TSVファイルを選択してください。";
+      statusEl.textContent = "Select a CSV/TSV file first.";
       return;
     }
 
-    showLoading("データを読み込み・解析中...");
+    showLoading("Loading and parsing data...");
     statusEl.textContent = "";
     dupPanel.hidden = true;
     dupBody.textContent = "";
@@ -319,7 +319,7 @@
       const parsed = await CSV.parseCsv(file);
       if (!parsed.rows.length) {
         hideLoading();
-        statusEl.textContent = "有効なデータ行がありません。";
+        statusEl.textContent = "No valid data rows were found.";
         downloadBtn.disabled = true;
         return;
       }
@@ -338,11 +338,11 @@
       state.hasDirtyData = true;
       hideLoading();
       const fmtLabel = parsed.delimiter === "tsv" ? "TSV" : "CSV";
-      statusEl.textContent = `完了: ${state.cleanedRows.length}行を出力できます。 (形式: ${fmtLabel} / encoding: ${parsed.encoding} / SIM=${SIM}, 日付差=${MAX_DAY_DIFF}日)`;
+      statusEl.textContent = `Done: ${state.cleanedRows.length} rows ready. (format: ${fmtLabel} / encoding: ${parsed.encoding} / SIM=${SIM}, dateDiff=${MAX_DAY_DIFF}d)`;
     } catch (err) {
       hideLoading();
       downloadBtn.disabled = true;
-      statusEl.textContent = `エラー: ${err.message}`;
+      statusEl.textContent = `Error: ${err.message}`;
     }
   });
 
